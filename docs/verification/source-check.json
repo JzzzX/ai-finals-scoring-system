@@ -1,0 +1,16 @@
+{
+  "teamsRevision": 111,
+  "criteriaRevision": 232,
+  "teamCount": 12,
+  "members": 44,
+  "photos": 12,
+  "criteriaWeights": [
+    20,
+    20,
+    20,
+    20,
+    10,
+    10
+  ],
+  "checks": "all names/order/members/departments/photo tokens and detailed rubric text matched; maturity stage and guidance cells joined by semicolon"
+}

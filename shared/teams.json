@@ -1,0 +1,286 @@
+[
+  {
+    "id": "team-01",
+    "order": 1,
+    "name": "全员产品创新协同平台",
+    "members": [
+      {
+        "name": "翟雨佳",
+        "department": "产品运营中心-产品组"
+      },
+      {
+        "name": "张肖",
+        "department": "产品运营中心-产品组-品类组-湿粮组"
+      },
+      {
+        "name": "董博",
+        "department": "产品运营中心-产品组-品类组-猫零食"
+      },
+      {
+        "name": "李耀星",
+        "department": "产品运营中心-产品组-品类组-狗零食&咬胶组"
+      },
+      {
+        "name": "白云波",
+        "department": "产品运营中心-产品组-品类组-狗零食&咬胶组"
+      },
+      {
+        "name": "赵静",
+        "department": "产品运营中心-产品组-品类组-湿粮组"
+      },
+      {
+        "name": "王蓉",
+        "department": "产品运营中心-产品组-品类组-猫零食"
+      }
+    ],
+    "photo": "/teams/team-01.png",
+    "sourcePhotoToken": "MiDwbsLBDoWg9OxH7ZKcp6xTnJg"
+  },
+  {
+    "id": "team-02",
+    "order": 2,
+    "name": "包装原料智能合规审核平台",
+    "members": [
+      {
+        "name": "黄本增",
+        "department": "产品运营中心-产品组-品类组-主粮组"
+      },
+      {
+        "name": "杜刚",
+        "department": "产品运营中心-产品组-品类组-主粮组"
+      },
+      {
+        "name": "杨合敏",
+        "department": "产品运营中心-产品组-品类组-主粮组"
+      },
+      {
+        "name": "吴晓晓",
+        "department": "产品运营中心-产品组-品类组-主粮组"
+      },
+      {
+        "name": "蒋云帆",
+        "department": "数智中心-营销架构组"
+      },
+      {
+        "name": "朱俊玮",
+        "department": "产品运营中心-产品组-品类组-主粮组"
+      }
+    ],
+    "photo": "/teams/team-02.png",
+    "sourcePhotoToken": "Pq3cbPYEPonVToxnUQCc8KsPnVf"
+  },
+  {
+    "id": "team-03",
+    "order": 3,
+    "name": "B端生意模型健康分析平台",
+    "members": [
+      {
+        "name": "董浩",
+        "department": "电商ToB运营中心-销售行政服务中心-销售运营组"
+      },
+      {
+        "name": "周雪菲",
+        "department": "电商ToB运营中心-销售行政服务中心-销售运营组"
+      },
+      {
+        "name": "杨红",
+        "department": "电商ToB运营中心-线上分销组-麦富迪上海"
+      }
+    ],
+    "photo": "/teams/team-03.png",
+    "sourcePhotoToken": "GX2DbepcXouCG9xQ2iIcskQBnrd"
+  },
+  {
+    "id": "team-04",
+    "order": 4,
+    "name": "VOC客诉智能应答平台",
+    "members": [
+      {
+        "name": "杨希亚",
+        "department": "质量运营中心-质量控制部-品质改善"
+      },
+      {
+        "name": "李斌斌",
+        "department": "数智中心-ITBP-财经&生产组"
+      }
+    ],
+    "photo": "/teams/team-04.png",
+    "sourcePhotoToken": "BQY0bvuPeoH4Q1xWZmncOTs5n3c"
+  },
+  {
+    "id": "team-05",
+    "order": 5,
+    "name": "设备基建供应商智能准入平台",
+    "members": [
+      {
+        "name": "胡婷",
+        "department": "供应链策略部"
+      }
+    ],
+    "photo": "/teams/team-05.png",
+    "sourcePhotoToken": "Nk2ObGwcVoPE4XxpDJWcPhMRnte"
+  },
+  {
+    "id": "team-06",
+    "order": 6,
+    "name": "采购行情洞察与决策平台",
+    "members": [
+      {
+        "name": "郑晓岩",
+        "department": "集团采购中心-战略采购组-主料"
+      },
+      {
+        "name": "徐光燕",
+        "department": "集团采购中心-战略采购组-辅料"
+      },
+      {
+        "name": "曹立云",
+        "department": "集团采购中心-战略采购组-主料"
+      },
+      {
+        "name": "魏娟",
+        "department": "集团采购中心-战略采购组-包材"
+      }
+    ],
+    "photo": "/teams/team-06.png",
+    "sourcePhotoToken": "CYo3bVqdaofIpNxrbSecmR4Wnjh"
+  },
+  {
+    "id": "team-07",
+    "order": 7,
+    "name": "人工定额与OEM智能报价平台",
+    "members": [
+      {
+        "name": "路宗鑫",
+        "department": "零食生产运营中心-乖宝用品"
+      },
+      {
+        "name": "刘肖格",
+        "department": "零食生产运营中心-9-4车间零食线"
+      },
+      {
+        "name": "郭书欣",
+        "department": "零食生产运营中心-9-2车间"
+      },
+      {
+        "name": "冯敏",
+        "department": "零食生产运营中心-海创东阿分公司-非一线"
+      }
+    ],
+    "photo": "/teams/team-07.png",
+    "sourcePhotoToken": "X8aOb8ELMoJR6dxKP02cliOCnId"
+  },
+  {
+    "id": "team-08",
+    "order": 8,
+    "name": "物料计划全链路协同平台",
+    "members": [
+      {
+        "name": "程宇翔",
+        "department": "物控中心-计划模块-物料计划组"
+      },
+      {
+        "name": "张杰",
+        "department": "物控中心-计划模块"
+      },
+      {
+        "name": "张冬丽",
+        "department": "物控中心-计划模块-物料计划组"
+      },
+      {
+        "name": "高香",
+        "department": "数智中心-ITBP-财经&生产组"
+      }
+    ],
+    "photo": "/teams/team-08.png",
+    "sourcePhotoToken": "ChKkbpwsIo4ag2xgyPbc1baCnbb"
+  },
+  {
+    "id": "team-09",
+    "order": 9,
+    "name": "库存周转分析与智能预警平台",
+    "members": [
+      {
+        "name": "李铭璇",
+        "department": "数智中心-大数据分析-供应链&财经组"
+      },
+      {
+        "name": "崔帆",
+        "department": "物控中心-数据模块"
+      },
+      {
+        "name": "许朋",
+        "department": "物控中心-计划模块-需求计划组"
+      },
+      {
+        "name": "张杰",
+        "department": "物控中心-计划模块"
+      },
+      {
+        "name": "李鹏瑞",
+        "department": "数智中心-大数据分析-供应链&财经组"
+      },
+      {
+        "name": "刘京",
+        "department": "供应链策略部"
+      }
+    ],
+    "photo": "/teams/team-09.png",
+    "sourcePhotoToken": "Y2uNbPyr0oGOGqxdaQkcUKbRn0c"
+  },
+  {
+    "id": "team-10",
+    "order": 10,
+    "name": "仓储拣货优化决策平台",
+    "members": [
+      {
+        "name": "辛慧领",
+        "department": "电商物流部-订单组"
+      }
+    ],
+    "photo": "/teams/team-10.png",
+    "sourcePhotoToken": "Egy4bbnb2oE3k6xVvmjcobNjnpc"
+  },
+  {
+    "id": "team-11",
+    "order": 11,
+    "name": "任职资格标准智能生成平台",
+    "members": [
+      {
+        "name": "钱晨曦",
+        "department": "人力资源中心-支持中心-人才发展"
+      },
+      {
+        "name": "宫珊",
+        "department": "人力资源中心-支持中心"
+      },
+      {
+        "name": "蒋云帆",
+        "department": "数智中心-营销架构组"
+      },
+      {
+        "name": "王飞亚",
+        "department": "数智中心-AI创新中心组"
+      }
+    ],
+    "photo": "/teams/team-11.png",
+    "sourcePhotoToken": "Mtswbc4OqoJUnzx9PnicKTGanRc"
+  },
+  {
+    "id": "team-12",
+    "order": 12,
+    "name": "管理者AI实战陪练平台",
+    "members": [
+      {
+        "name": "刘磊",
+        "department": "人力资源中心-支持中心-人才发展"
+      },
+      {
+        "name": "王硕硕",
+        "department": "数智中心-AI创新中心组"
+      }
+    ],
+    "photo": "/teams/team-12.png",
+    "sourcePhotoToken": "WXWPbqYoJoF2dzxD5FbcpakPn0k"
+  }
+]
