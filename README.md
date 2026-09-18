@@ -6,26 +6,39 @@
 
 网站使用正式数据流程：12 支真实参赛队伍、初始无评分、赛事等待开始。不会自动创建评委，也不预填任何成绩。
 
-后续将接入飞书 OAuth；当前保留账号登录和独立身份接口，方便开发同事本地验证。接入说明见 [飞书交接](docs/feishu-handoff.md)。
+后续将接入飞书 OAuth；当前保留账号登录和独立身份接口，方便开发同事本地验证。完整交接见 [开发交接文档](docs/developer-handoff.md)，认证技术说明见 [飞书与部署接入](docs/feishu-handoff.md)。
 
 公开源码仓库地址：
 
 - GitHub：[JzzzX/ai-finals-scoring-system](https://github.com/JzzzX/ai-finals-scoring-system)
 - Gitea：[ai-itbp/ai-finals-scoring-system](http://192.168.180.119:3000/ai-itbp/ai-finals-scoring-system)
 
-## 正式本地启动
+## 初版查看账号
+
+当前维护者本机已配置以下账号，可用于初版页面查看与开发联调：
+
+| 身份 | 账号 | 密码 | 权限 |
+| --- | --- | --- | --- |
+| 管理员 | `admin` | `admin12345678` | 成绩、成员与权限、赛事设置 |
+| 评委 | `judge` | `judge12345678` | 队伍、评分标准、本人评分 |
+
+当前赛事未开始，0 份评分。评委提交前需由管理员开始评分；这会固定本场评委名单。`judge` 是初版查看账号，不代表正式评委。
+
+**账号已在此公开 README 明文列出，仅用于初版联调。** 仓库不包含本机数据库，拉取代码不会自动获得这些账号。开发同事按下方步骤创建管理员，再到“成员与权限”创建 `judge`，姓名填“评委（初版查看）”、密码填 `judge12345678`，只勾选评委角色。正式上线前停用初版查看账号并更换管理员密码，或完成飞书身份绑定后关闭公开账密登录。
+
+## 本地启动
 
 环境：Node.js 24 或更新版本（本机验证 Node 26.6.0）、npm。在项目根目录执行：
 
 ```sh
 npm ci
 cp .env.example .env
-npm run admin:create
+ADMIN_USERNAME=admin ADMIN_NAME=赛事管理员 ADMIN_PASSWORD=admin12345678 npm run admin:create
 npm run build
 npm start
 ```
 
-初始化按提示输入管理员账号、姓名和至少 12 位的独立密码，密码不回显。首个管理员不自带评委角色，不存在通用默认密码。管理员已存在时初始化命令会拒绝再次创建，其他账号通过“成员与权限”添加。
+以上命令显式创建初版管理员。也可单独运行 `npm run admin:create`，按提示输入自选账号、姓名和至少 12 位密码，密码不回显；程序不会自动创建默认账号。首个管理员不自带评委角色。管理员已存在时初始化命令会拒绝再次创建，其他账号通过“成员与权限”添加。
 
 浏览器访问 <http://127.0.0.1:3001>。如 3001 已有本项目旧服务，请先在原终端按 Ctrl+C。默认只监听本机；本期不开放公网。
 
@@ -78,7 +91,8 @@ SQLite 使用 WAL、FULL 同步、事务、唯一键；锁定 `better-sqlite3@13
 | `docs/sources/` | 飞书源文档读取快照 |
 | `docs/design/` | 三张效果图和设计规范 |
 | `docs/verification.md` | 验证记录与实际截图 |
-| `docs/feishu-handoff.md` | 飞书登录和部署接入说明 |
+| `docs/developer-handoff.md` | 当前交付、初版账号、开发接手步骤与后续工作 |
+| `docs/feishu-handoff.md` | 飞书登录和部署技术接入说明 |
 
 运行检查：`npm test`、`npm run build`。不需要连接飞书即可本地评分。飞书认证和生产部署未在本期实施。
 
