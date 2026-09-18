@@ -8,7 +8,7 @@
 
 后续将接入飞书 OAuth；当前保留账号登录和独立身份接口，方便开发同事本地验证。接入说明见 [飞书交接](docs/feishu-handoff.md)。
 
-源码同步至以下公开仓库：
+公开源码仓库地址：
 
 - GitHub：[JzzzX/ai-finals-scoring-system](https://github.com/JzzzX/ai-finals-scoring-system)
 - Gitea：[ai-itbp/ai-finals-scoring-system](http://192.168.180.119:3000/ai-itbp/ai-finals-scoring-system)
