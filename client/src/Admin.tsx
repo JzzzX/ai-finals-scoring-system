@@ -10,6 +10,7 @@ import {
   Clock3,
   Search,
   RotateCcw,
+  Presentation,
 } from "lucide-react";
 import type {
   AuditEvent,
@@ -22,9 +23,11 @@ import type {
 } from "../../shared/types";
 import { api, errorMessage } from "./api";
 import { Modal, Notice, Status } from "./ui";
+import { Leaderboard } from "./Leaderboard";
 
 const sections = [
   { path: "/admin/results", label: "成绩与进度", Icon: BarChart3 },
+  { path: "/admin/display", label: "实时榜单", Icon: Presentation },
   { path: "/admin/users", label: "成员与权限", Icon: UsersRound },
   { path: "/admin/settings", label: "赛事设置", Icon: Settings2 },
 ];
@@ -57,7 +60,7 @@ export function Admin({
       running = false;
     };
     void poll();
-    const t = setInterval(() => void poll(), 5000);
+    const t = setInterval(() => void poll(), 2000);
     const resume = () => {
       if (!document.hidden) void poll();
     };
@@ -78,7 +81,7 @@ export function Admin({
         {sections.map(({ path, label, Icon }) => (
           <button
             key={path}
-            className={route === path ? "active" : ""}
+            className={`${route === path ? "active" : ""} ${path === "/admin/display" ? "admin-subnav" : ""}`}
             onClick={() => navigate(path)}
           >
             <Icon size={21} />
@@ -97,19 +100,37 @@ export function Admin({
         )}
         {!data ? (
           <p role="status">正在加载赛事数据…</p>
+        ) : route === "/admin/display" ? (
+          <Leaderboard
+            data={data}
+            error={error}
+            onBack={() => navigate("/admin/results")}
+          />
         ) : route === "/admin/users" ? (
           <Members currentId={session.user.id} data={data} refresh={refresh} />
         ) : route === "/admin/settings" ? (
           <Settings data={data} refresh={refresh} />
         ) : (
-          <ResultsPage data={data} />
+          <ResultsPage
+            data={data}
+            error={error}
+            onDisplay={() => navigate("/admin/display")}
+          />
         )}
       </main>
     </div>
   );
 }
-function ResultsPage({ data }: { data: Results }) {
-  const [ranked, setRanked] = useState(false),
+function ResultsPage({
+  data,
+  error,
+  onDisplay,
+}: {
+  data: Results;
+  error: string;
+  onDisplay: () => void;
+}) {
+  const [ranked, setRanked] = useState(true),
     [detail, setDetail] = useState<string | null>(null),
     [exportOpen, setExportOpen] = useState(false);
   const rows = ranked
@@ -125,13 +146,52 @@ function ResultsPage({ data }: { data: Results }) {
         <div>
           <h1>成绩与进度</h1>
           <p>
-            {data.rows.length} 支队伍 · {data.judges.length} 位评委
+            {data.contest.title} · {data.rows.length} 支队伍 ·{" "}
+            {data.judges.length} 位评委
           </p>
         </div>
-        <button className="primary" onClick={() => setExportOpen(true)}>
-          <Download size={18} />
-          导出 CSV
-        </button>
+        <div className="results-actions">
+          <button className="outline" onClick={onDisplay}>
+            <Presentation size={18} />
+            成绩展示
+          </button>
+          <button className="primary" onClick={() => setExportOpen(true)}>
+            <Download size={18} />
+            导出 CSV
+          </button>
+        </div>
+      </div>
+      <div className="results-overview">
+        <div>
+          <span>成绩口径</span>
+          <strong>等权平均</strong>
+          <small>不去最高最低分，0 分计入</small>
+        </div>
+        <div>
+          <span>评分收齐</span>
+          <strong>
+            {
+              data.rows.filter(
+                (r) => r.count > 0 && r.count === data.judges.length,
+              ).length
+            }
+            <small> / {data.rows.length} 队</small>
+          </strong>
+          <small>{data.expected - data.total} 份待提交</small>
+        </div>
+        <div>
+          <span>榜单状态</span>
+          <strong>
+            {data.contest.status === "closed" &&
+            data.expected > 0 &&
+            data.total === data.expected
+              ? "最终成绩"
+              : "暂定排名"}
+          </strong>
+          <small className={error ? "invalid" : ""}>
+            {error ? "同步中断，显示上次数据" : "每 2 秒自动同步"}
+          </small>
+        </div>
       </div>
       <div className="summary-strip">
         <span>
@@ -262,7 +322,10 @@ function ResultsPage({ data }: { data: Results }) {
       )}{" "}
       {exportOpen && (
         <Modal title="导出评分记录" onClose={() => setExportOpen(false)}>
-          <p className="muted">导出当前真实记录。尚未评分的位置保留为空。</p>
+          <p className="muted">
+            队伍汇总按排名排列，附成绩状态与导出时间；逐评委明细保留每笔评分、评语和时间。CSV
+            可用 Excel 打开，未评分留空。
+          </p>
           <div className="export-options">
             <a
               className="outline"

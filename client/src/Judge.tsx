@@ -12,6 +12,9 @@ import {
   ChevronRight,
   List,
   WifiOff,
+  Minus,
+  Plus,
+  CheckCircle2,
 } from "lucide-react";
 import type {
   Criterion,
@@ -194,6 +197,7 @@ export function Judge({ session }: { session: SessionInfo }) {
     <div className="judge-shell">
       <aside className="judge-sidebar">{queue}</aside>
       <div className="judge-main">
+        <p className="contest-caption">{data.contest.title}</p>
         <div className="mobile-progress">
           <progress value={completed} max={data.teams.length} />
           <div>
@@ -212,6 +216,19 @@ export function Judge({ session }: { session: SessionInfo }) {
         </div>
         {error && <Notice>{error} 已保留上次加载内容。</Notice>}
         {message && <Notice success>{message}</Notice>}
+        {completed === data.teams.length && (
+          <div className="completion-banner">
+            <CheckCircle2 size={28} />
+            <div>
+              <strong>本场评分已全部完成</strong>
+              <p>
+                {data.contest.status === "closed"
+                  ? "感谢你的认真评审。本场评分已结束，可查看本人评分记录。"
+                  : "感谢你的认真评审。截止前仍可选择队伍，核对并更新评分。"}
+              </p>
+            </div>
+          </div>
+        )}
         {team && (
           <ScoreSheet
             key={`${session.user.id}:${team.id}`}
@@ -277,9 +294,7 @@ function ScoreSheet({
     [error, setError] = useState(""),
     [offline, setOffline] = useState(!navigator.onLine),
     [members, setMembers] = useState(false),
-    [criteriaOpen, setCriteriaOpen] = useState(
-      () => window.matchMedia("(min-width: 900px)").matches,
-    ),
+    [criteriaOpen, setCriteriaOpen] = useState(false),
     [criterion, setCriterion] = useState<Criterion | null>(null),
     [confirm, setConfirm] = useState(false);
   const submitLock = useRef(false);
@@ -372,7 +387,22 @@ function ScoreSheet({
           </span>
           <Status status={data.contest.status} />
         </div>
-        <h1>{team.name}</h1>
+        <div className="team-intro">
+          <div>
+            <h1>{team.name}</h1>
+            <p className="team-intro-caption">认真看见成果，让创新获得回响。</p>
+          </div>
+          <button
+            className="team-preview"
+            onClick={() => setMembers(true)}
+            aria-label="查看团队合照与成员"
+          >
+            <img src={team.photo} alt={`${team.name}团队合照`} />
+            <span>
+              认识这支团队 <ChevronRight size={13} />
+            </span>
+          </button>
+        </div>
         <div className="team-byline">
           <span>{team.members.map((m) => m.name).join("、")}</span>
           <button className="text-button" onClick={() => setMembers(true)}>
@@ -381,126 +411,123 @@ function ScoreSheet({
           </button>
         </div>
       </section>
-      <section className={`criteria-section ${criteriaOpen ? "expanded" : ""}`}>
-        <button
-          className="criteria-toggle"
-          onClick={() => setCriteriaOpen(!criteriaOpen)}
-          aria-expanded={criteriaOpen}
-        >
-          <h2>
-            评分参考<span className="mobile-only"> · 六项综合判断</span>
-          </h2>
-          <ChevronDown size={20} />
-        </button>
-        {criteriaOpen && (
-          <div className="criteria-table">
-            {data.criteria.map((c, i) => (
-              <button
-                className="criterion-row"
-                key={c.name}
-                onClick={() => setCriterion(c)}
-              >
-                <span className="criterion-label">
-                  <i>{i + 1}</i>
-                  <strong>{c.name}</strong>
-                  <span>{c.weight}%</span>
-                </span>
-                <span className="criterion-question">{c.question}</span>
-                <span className="criterion-link">
-                  查看详细标准
-                  <ChevronRight size={14} />
-                </span>
-              </button>
-            ))}
-          </div>
-        )}
-      </section>
       <section className="score-section">
-        <div className="score-label">
-          <div>
-            <h2>综合评分</h2>
-            <p className="muted">0—10 分，每档 0.5 分</p>
-          </div>
-          <label className="score-input-wrap">
-            <span className="sr-only">综合评分输入</span>
-            <input
-              type="number"
-              inputMode="decimal"
-              min="0"
-              max="10"
-              step="0.5"
-              value={draft.value}
-              disabled={!enabled}
-              placeholder="—"
-              onChange={(e) => update({ value: e.target.value })}
-              aria-describedby="score-help"
-            />
-            <span>/ 10</span>
-          </label>
+        <div className="evaluation-inputs">
+          <section className="rating-card" aria-label="综合评分">
+            <div className="score-label">
+              <div>
+                <h2>综合评分</h2>
+                <p className="muted">0—10 分，每档 0.5 分</p>
+              </div>
+              <label className="score-input-wrap">
+                <span className="sr-only">综合评分输入</span>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  max="10"
+                  step="0.5"
+                  value={draft.value}
+                  disabled={!enabled}
+                  placeholder="—"
+                  onChange={(e) => update({ value: e.target.value })}
+                  aria-describedby="score-help"
+                />
+                <span>/ 10</span>
+              </label>
+            </div>
+            <div className={`slider-wrap ${draft.value === "" ? "unset" : ""}`}>
+              <label className="sr-only" htmlFor={`slider-${team.id}`}>
+                综合评分滑块
+              </label>
+              <input
+                id={`slider-${team.id}`}
+                aria-valuetext={
+                  draft.value === "" ? "尚未评分" : `${draft.value} 分`
+                }
+                type="range"
+                min="0"
+                max="10"
+                step="0.5"
+                value={valid ? Number(draft.value) : 0}
+                disabled={!enabled}
+                onChange={(e) => update({ value: e.target.value })}
+                onPointerUp={(e) => update({ value: e.currentTarget.value })}
+                onKeyUp={(e) => {
+                  if (
+                    [
+                      "ArrowLeft",
+                      "ArrowRight",
+                      "ArrowUp",
+                      "ArrowDown",
+                      "Home",
+                      "End",
+                    ].includes(e.key)
+                  )
+                    update({ value: e.currentTarget.value });
+                }}
+                style={
+                  {
+                    "--fill": `${valid ? Number(draft.value) * 10 : 0}%`,
+                  } as CSSProperties
+                }
+              />
+              <div className="slider-ticks">
+                <span>0</span>
+                <span>5</span>
+                <span>10</span>
+              </div>
+            </div>
+            <div className="score-adjust" aria-label="半分微调">
+              <span>精确到每一个 0.5 分</span>
+              <button
+                className="outline"
+                aria-label="减少 0.5 分"
+                disabled={!enabled || !valid || Number(draft.value) <= 0}
+                onClick={() =>
+                  update({ value: String(Number(draft.value) - 0.5) })
+                }
+              >
+                <Minus size={16} />
+                0.5
+              </button>
+              <button
+                className="outline"
+                aria-label="增加 0.5 分"
+                disabled={!enabled || !valid || Number(draft.value) >= 10}
+                onClick={() =>
+                  update({ value: String(Number(draft.value) + 0.5) })
+                }
+              >
+                <Plus size={16} />
+                0.5
+              </button>
+            </div>
+            <p
+              id="score-help"
+              className={`score-help ${draft.value !== "" && !valid ? "invalid" : ""}`}
+            >
+              {draft.value === ""
+                ? "拖动滑块或直接输入分数，0 分也是有效评分。"
+                : !valid
+                  ? "请输入 0—10 之间的分数，以 0.5 分为间隔。"
+                  : "综合六项表现，依据已实现的成果判断。"}
+            </p>
+          </section>
+          <section className="comment-card" aria-label="评语与依据">
+            <label className="comment-label">
+              评语与依据 <span className="muted">（选填）</span>
+              <textarea
+                value={draft.comment}
+                disabled={!enabled}
+                maxLength={500}
+                onChange={(e) => update({ comment: e.target.value })}
+                placeholder="写下你的评价与评分依据…"
+              />
+              <span className="char-count">{draft.comment.length} / 500</span>
+            </label>
+          </section>
         </div>
-        <div className={`slider-wrap ${draft.value === "" ? "unset" : ""}`}>
-          <label className="sr-only" htmlFor={`slider-${team.id}`}>
-            综合评分滑块
-          </label>
-          <input
-            id={`slider-${team.id}`}
-            aria-valuetext={
-              draft.value === "" ? "尚未评分" : `${draft.value} 分`
-            }
-            type="range"
-            min="0"
-            max="10"
-            step="0.5"
-            value={valid ? Number(draft.value) : 0}
-            disabled={!enabled}
-            onChange={(e) => update({ value: e.target.value })}
-            onPointerUp={(e) => update({ value: e.currentTarget.value })}
-            onKeyUp={(e) => {
-              if (
-                [
-                  "ArrowLeft",
-                  "ArrowRight",
-                  "ArrowUp",
-                  "ArrowDown",
-                  "Home",
-                  "End",
-                ].includes(e.key)
-              )
-                update({ value: e.currentTarget.value });
-            }}
-            style={
-              {
-                "--fill": `${valid ? Number(draft.value) * 10 : 0}%`,
-              } as CSSProperties
-            }
-          />
-          <div className="slider-ticks">
-            <span>0</span>
-            <span>5</span>
-            <span>10</span>
-          </div>
-        </div>
-        <p
-          id="score-help"
-          className={`score-help ${draft.value !== "" && !valid ? "invalid" : ""}`}
-        >
-          {draft.value === ""
-            ? "拖动滑块或直接输入分数，0 分也是有效评分。"
-            : !valid
-              ? "请输入 0—10 之间的分数，以 0.5 分为间隔。"
-              : "综合六项表现，依据已实现的成果判断。"}
-        </p>
-        <label className="comment-label">
-          评语与依据 <span className="muted">（选填）</span>
-          <textarea
-            value={draft.comment}
-            disabled={!enabled}
-            maxLength={500}
-            onChange={(e) => update({ comment: e.target.value })}
-            placeholder="写下你的评价与评分依据…"
-          />
-          <span className="char-count">{draft.comment.length} / 500</span>
-        </label>
         <p className="draft-hint" role="status">
           {hint}
         </p>
@@ -554,10 +581,49 @@ function ScoreSheet({
           </Notice>
         )}
       </section>
+      <section className={`criteria-section ${criteriaOpen ? "expanded" : ""}`}>
+        <button
+          className="criteria-toggle"
+          onClick={() => setCriteriaOpen(!criteriaOpen)}
+          aria-expanded={criteriaOpen}
+        >
+          <h2>
+            评分参考<span className="criteria-caption"> · 六项综合判断</span>
+          </h2>
+          <span className="criteria-action">
+            {criteriaOpen ? "收起" : "展开参考"}
+            <ChevronDown size={20} />
+          </span>
+        </button>
+        {criteriaOpen && (
+          <div className="criteria-table">
+            {data.criteria.map((c, i) => (
+              <button
+                className="criterion-row"
+                key={c.name}
+                onClick={() => setCriterion(c)}
+              >
+                <span className="criterion-label">
+                  <i>{i + 1}</i>
+                  <strong>{c.name}</strong>
+                  <span>{c.weight}%</span>
+                </span>
+                <span className="criterion-question">{c.question}</span>
+                <span className="criterion-link">
+                  查看详细标准
+                  <ChevronRight size={14} />
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+      </section>
       <div className="submit-bar">
         <div className="submit-score">
           <span className="mobile-only small">本组评分</span>
-          <b>{valid ? Number(draft.value).toFixed(1) : "—"}</b>
+          <b key={draft.value}>
+            {valid ? Number(draft.value).toFixed(1) : "—"}
+          </b>
           <span>/ 10</span>
         </div>
         <p className="desktop-only">{hint}</p>

@@ -561,6 +561,10 @@ export class FinalsService {
   }
   exportCsv(actorId: string, mode: "summary" | "detail") {
     const result = this.results(actorId);
+    const final =
+      result.contest.status === "closed" &&
+      result.expected > 0 &&
+      result.total === result.expected;
     const rows: unknown[][] =
       mode === "summary"
         ? [
@@ -572,10 +576,20 @@ export class FinalsService {
               "已评人数",
               "应评人数",
               "状态",
+              "成绩状态",
+              "导出时间",
             ],
           ]
         : [["出场顺序", "队伍", "评委", "评分", "评语", "更新时间"]];
-    for (const r of result.rows) {
+    const ordered =
+      mode === "summary"
+        ? [...result.rows].sort(
+            (a, b) =>
+              (a.rank ?? Infinity) - (b.rank ?? Infinity) ||
+              a.team.order - b.team.order,
+          )
+        : result.rows;
+    for (const r of ordered) {
       if (mode === "summary")
         rows.push([
           r.team.order,
@@ -585,6 +599,8 @@ export class FinalsService {
           r.count,
           result.judges.length,
           r.count === result.judges.length && r.count ? "已收齐" : "尚未收齐",
+          final ? "最终成绩" : "暂定排名",
+          result.updatedAt,
         ]);
       else
         for (const j of result.judges) {

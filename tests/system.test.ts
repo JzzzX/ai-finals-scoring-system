@@ -380,3 +380,54 @@ test("备份与恢复 CLI：在线备份、运行中拒绝恢复、旧库恢复�
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test("7 位评委等权平均，汇总按名次导出且只在收齐并结束后标记最终成绩", async () => {
+  const { store, service: s, admin, judge, judge2 } = await setup();
+  try {
+    const judges = [judge, judge2];
+    for (let i = 3; i <= 7; i++)
+      judges.push(
+        await s.createUser(
+          {
+            username: `judge${i}`,
+            name: `评委${i}`,
+            password,
+            roles: ["judge"],
+          },
+          admin.id,
+        ),
+      );
+    s.setStatus(admin.id, { status: "open", expectedRevision: 0 });
+    for (const [index, j] of judges.entries()) {
+      s.submit(j.id, "team-01", submission([0, 7, 8, 8.5, 9, 9.5, 10][index]));
+      s.submit(j.id, "team-02", submission(8));
+    }
+    const result = s.results(admin.id);
+    assert.equal(result.rows[0].average, 52 / 7);
+    assert.equal(result.rows[0].count, 7);
+    assert.equal(result.rows[0].rank, 2);
+    assert.equal(result.rows[1].rank, 1);
+    const csv = s.exportCsv(admin.id, "summary");
+    assert.match(csv.split("\r\n")[1], /^"2",/);
+    assert.match(csv, /暂定排名/);
+    assert.match(csv, /导出时间/);
+    s.setStatus(admin.id, { status: "closed", expectedRevision: 1 });
+    assert.doesNotMatch(s.exportCsv(admin.id, "summary"), /最终成绩/);
+    s.setStatus(admin.id, {
+      status: "open",
+      expectedRevision: 2,
+      reason: "补齐测试评分",
+    });
+    for (const j of judges)
+      for (const team of s.teams().slice(2))
+        s.submit(j.id, team.id, submission(8));
+    assert.doesNotMatch(s.exportCsv(admin.id, "summary"), /最终成绩/);
+    s.setStatus(admin.id, { status: "closed", expectedRevision: 3 });
+    const final = s.exportCsv(admin.id, "summary");
+    assert.match(final, /最终成绩/);
+    assert.doesNotMatch(final, /暂定排名/);
+    assert.equal(final.split("\r\n").length, 13);
+  } finally {
+    store.close();
+  }
+});
