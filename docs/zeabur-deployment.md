@@ -46,7 +46,8 @@ npm run db:backup -- /data/backups/before-finals.sqlite
 
 - 本地：构建、OAuth/权限/计分测试，以及 50 位评委 × 12 队提交测试。
 - 云端已验证：Docker 构建成功、Node.js v24.21.0、健康检查 200、未登录 API 返回 401、本地密码登录返回 404；服务重启后持久化检查文件保留，SQLite integrity_check 为 ok，健康检查再次返回 200。检查文件已删除。
-- 云端待验证：HTTPS、正式数据迁移、飞书登录和角色、手机流量访问。当前空库的持久化验证不代表正式数据已迁移。
+- 公网已验证：域名解析至已购北京服务器，HTTPS 证书验证通过，GET 首页及 /api/health 返回 200，未登录 /api/me 返回 401。北京服务器用域名请求也验证成功。
+- 云端待验证：正式数据迁移、飞书登录和角色、手机流量访问。当前空库的持久化验证不代表正式数据已迁移。
 - 健康检查仅证明进程及数据库可读取，不代表评分可写或 OAuth 配置完整。
 - 正式库不随意提交测试分数；完整评分演练使用另行约定的测试数据。
 - 域名使用需按 Zeabur 提供的预备案域名规则完成实名认证，并验证实际分配结果。
@@ -61,8 +62,10 @@ npm run db:backup -- /data/backups/before-finals.sqlite
 - 首次构建：`6ab37a425d7569a2d1c6d067`，部署代码提交 `e334c90`。
 - 持久化卷：`scoring-data`，挂载 `/data`，已确认真实磁盘挂载。
 - 控制台：https://zeabur.com/projects/6ab379ce76ea2bdcc9db9840/services/6ab379f376ea2bdcc9db9857?envID=6ab379ce36d2a6cac4934dc0
-- 预备案域名候选：`gambol-ai-finals-0928.preview.aliyun-zeabur.cn`，尚未确认绑定；由用户在平台阅读条款并完成实名认证。候选域名不能当作已可用入口。
-- 飞书配置尚未导入，登录接口当前返回 503，提示“飞书登录尚未完成服务器配置”。
+- 已完成实名认证及域名绑定：https://gambol-ai-finals-0928.preview.aliyun-zeabur.cn 。公网服务可达，但尚不能完成飞书登录和正式评分。
+- 已设置 APP_ORIGIN、FEISHU_APP_ID 及 FEISHU_REDIRECT_URI。新回调为 `https://gambol-ai-finals-0928.preview.aliyun-zeabur.cn/api/auth/feishu/callback`。
+- FEISHU_APP_SECRET、FEISHU_TENANT_KEY 及原有可选 scope 尚未导入；飞书平台的新回调尚未登记；登录接口当前返回 503，提示“飞书登录尚未完成服务器配置”。
+- 当前电脑网络代理曾把域名解析至 198.18.*，普通 curl 出现 TLS 异常；保留域名及证书验证、仅定向已购服务器 IP 的请求成功，北京服务器正常 DNS 请求也成功。未修改电脑的代理或全局 DNS 设置。
 - 原公司内网服务、数据及已有回调未修改。
 
 给原部署同事的交接事项（草稿，未发送）：
