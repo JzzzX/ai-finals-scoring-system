@@ -4,6 +4,7 @@ export interface User {
   id: string;
   username: string;
   name: string;
+  title?: string;
   roles: Role[];
   active: boolean;
 }

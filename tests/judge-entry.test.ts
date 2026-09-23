@@ -9,11 +9,12 @@ test("姓名入口仅授予评委权限，账号升权不改变会话权限，�
   const password = "Test-only-password-2026!";
   try {
     const admin = await service.createUser({username:"admin",name:"管理员",password,roles:["admin"]});
-    const judge = await service.createJudge({name:"测试评委"},admin.id);
+    const judge = await service.createJudge({name:"测试评委",title:"测试职务"},admin.id);
     const dual = await service.createUser({username:"dual",name:"双角色",password,roles:["admin","judge"]},admin.id);
     const list = await request(http).get("/api/judges").expect(200);
     assert.deepEqual(list.body.map((u: {id:string}) => u.id).sort(), [judge.id,dual.id].sort());
-    assert.deepEqual(Object.keys(list.body[0]).sort(), ["id","name"]);
+    assert.deepEqual(Object.keys(list.body[0]).sort(), ["id","name","title"]);
+    assert.equal(list.body.find((u: {id:string}) => u.id === judge.id).title, "测试职务");
     await request(http).post("/api/judges/login").send({id:admin.id}).expect(403);
     await request(http).post("/api/judges/login").send({id:judge.id,roles:["admin"]}).expect(400);
     for (const user of [judge,dual]) {

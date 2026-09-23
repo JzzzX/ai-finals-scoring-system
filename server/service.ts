@@ -33,6 +33,7 @@ type UserRow = {
   id: string;
   username: string;
   name: string;
+  title: string;
   password_hash: string;
   roles: string;
   active: number;
@@ -54,6 +55,7 @@ const userSchema = z
       .max(40)
       .regex(/^[a-zA-Z0-9_.-]+$/),
     name: z.string().trim().min(1).max(60),
+    title: z.string().trim().max(100).default(""),
     password: z.string().min(12).max(128),
     roles: z
       .array(z.enum(["admin", "judge"]))
@@ -90,6 +92,7 @@ const toUser = (r: UserRow): User => ({
   id: r.id,
   username: r.username,
   name: r.name,
+  title: r.title,
   roles: JSON.parse(r.roles),
   active: !!r.active,
 });
@@ -150,7 +153,7 @@ export class FinalsService {
           throw new ConflictException("用户名已存在");
         const id = randomUUID();
         this.db
-          .prepare("INSERT INTO users VALUES(?,?,?,?,?,?,?)")
+          .prepare("INSERT INTO users(id,username,name,password_hash,roles,active,created_at,title) VALUES(?,?,?,?,?,?,?,?)")
           .run(
             id,
             input.username,
@@ -159,6 +162,7 @@ export class FinalsService {
             JSON.stringify([...new Set(input.roles)]),
             1,
             new Date().toISOString(),
+            input.title,
           );
         this.audit(actorId || id, "user.created", {
           userId: id,
@@ -174,6 +178,7 @@ export class FinalsService {
       z
         .object({
           name: z.string().trim().min(1).max(60).optional(),
+          title: z.string().trim().max(100).optional(),
           roles: z
             .array(z.enum(["admin", "judge"]))
             .min(1)
@@ -198,7 +203,7 @@ export class FinalsService {
           if (count <= 1) throw new ConflictException("至少保留一个可用管理员");
         }
         this.db
-          .prepare("UPDATE users SET name=?,roles=?,active=? WHERE id=?")
+          .prepare("UPDATE users SET name=?,roles=?,active=?,title=? WHERE id=?")
           .run(
               process.env.NODE_ENV === "production" &&
                 process.env.AUTH_MODE === "feishu"
@@ -206,6 +211,7 @@ export class FinalsService {
                 : input.name || before.name,
               JSON.stringify([...new Set(input.roles)]),
             Number(input.active),
+            input.title ?? before.title ?? "",
             id,
           );
         if (!input.active)
@@ -706,7 +712,7 @@ export class FinalsService {
     return (this.db.prepare("SELECT * FROM users WHERE active=1 ORDER BY created_at,id").all() as UserRow[])
       .map(toUser).filter(u => u.roles.includes("judge") &&
         (contest.status === "draft" || contest.roster.includes(u.id)))
-      .map(({id, name}) => ({id, name}));
+      .map(({id, name, title}) => ({id, name, title: title || ""}));
   }
   judgeLogin(body: unknown) {
     const {id} = parse(z.object({id: z.string().uuid()}).strict(), body);
@@ -718,8 +724,8 @@ export class FinalsService {
   }
   async createJudge(body: unknown, actorId: string) {
     this.require(actorId, "admin");
-    const {name} = parse(z.object({name: z.string().trim().min(1).max(60)}).strict(), body);
-    return this.createUser({name, username: `judge-${randomUUID().slice(0, 24)}`,
+    const {name, title} = parse(z.object({name: z.string().trim().min(1).max(60), title: z.string().trim().max(100).default("")}).strict(), body);
+    return this.createUser({name, title, username: `judge-${randomUUID().slice(0, 24)}`,
       password: randomToken(), roles: ["judge"]}, actorId);
   }
   issueSession(userId: string, scope: "account" | "judge" = "account") {

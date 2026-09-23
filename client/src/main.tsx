@@ -148,7 +148,7 @@ function App() {
     </>
   );
 }
-type JudgeIdentity = {id: string; name: string};
+type JudgeIdentity = {id: string; name: string; title: string};
 function Entry({admin, navigate, message, onLogin}: {
   admin: boolean; navigate: (path: string) => void; message: string;
   onLogin: (s: SessionInfo) => void;
@@ -182,12 +182,12 @@ function Entry({admin, navigate, message, onLogin}: {
       {message && <Notice>{message}</Notice>}
       {!selected && error && <Notice>{error}</Notice>}
       {loading ? <p role="status" className="entry-empty">正在加载评委名单…</p> : error && !selected ? <button onClick={() => void load()}>重新加载名单</button> : judges.length ?
-        <div className="judge-list">{judges.map(judge => <button className="judge-card" key={judge.id} onClick={() => {setError(""); setSelected(judge);}}><span className="judge-avatar"><UserRound size={24} /></span><strong>{judge.name}</strong><ArrowRight size={20} /></button>)}</div> :
+        <div className="judge-list">{judges.map(judge => <button className="judge-card" key={judge.id} onClick={() => {setError(""); setSelected(judge);}}><span className="judge-avatar"><UserRound size={24} /></span><span className="judge-details"><strong>{judge.name}</strong>{judge.title && <small>{judge.title}</small>}</span><ArrowRight size={20} /></button>)}</div> :
         <div className="entry-empty"><p>评委名单尚未配置</p><p className="muted">请联系现场工作人员，或稍后刷新名单。</p><button onClick={() => void load()}>刷新名单</button></div>}
       <p className="entry-hint">请仅选择本人姓名，评分将记入所选评委名下。</p>
     </main>
     {selected && <Modal title="请确认您的评委身份" onClose={() => {if (!busy) {setSelected(null); setError("");}}}>
-      <div className="judge-confirm"><span className="judge-avatar"><UserRound size={32} /></span><h3>{selected.name}</h3><p className="muted">请确认是本人，避免评分记入他人名下。</p>{error && <Notice>{error}</Notice>}<button className="primary" disabled={busy} onClick={() => void enter()}>{busy ? "正在进入…" : "确认是本人，进入评分"}</button><button className="text-button" disabled={busy} onClick={() => {setSelected(null); setError(""); void load();}}>返回重新选择</button></div>
+      <div className="judge-confirm"><span className="judge-avatar"><UserRound size={32} /></span><h3>{selected.name}</h3>{selected.title && <p className="muted">{selected.title}</p>}<p className="muted">请确认是本人，避免评分记入他人名下。</p>{error && <Notice>{error}</Notice>}<button className="primary" disabled={busy} onClick={() => void enter()}>{busy ? "正在进入…" : "确认是本人，进入评分"}</button><button className="text-button" disabled={busy} onClick={() => {setSelected(null); setError(""); void load();}}>返回重新选择</button></div>
     </Modal>}
   </div>;
 }

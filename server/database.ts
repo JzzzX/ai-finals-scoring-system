@@ -66,6 +66,8 @@ export class Store {
         PRIMARY KEY(provider,tenant_id,subject_id)
       );
     `);
+    if (!(this.db.pragma("table_info(users)") as { name: string }[]).some(c => c.name === "title"))
+      this.db.exec("ALTER TABLE users ADD COLUMN title TEXT NOT NULL DEFAULT ''");
     if (!(this.db.pragma("table_info(sessions)") as { name: string }[]).some(c => c.name === "auth_scope"))
       this.db.exec("ALTER TABLE sessions ADD COLUMN auth_scope TEXT NOT NULL DEFAULT 'account'");
     this.db.transaction(() => {

@@ -605,6 +605,7 @@ function MemberForm({
 }) {
   const existing = user === "new" ? null : user;
   const [name, setName] = useState(existing?.name || ""),
+    [title, setTitle] = useState(existing?.title || ""),
     [username, setUsername] = useState(existing?.username || ""),
     [password, setPassword] = useState(""),
     [roles, setRoles] = useState<Role[]>(existing?.roles || ["judge"]),
@@ -619,11 +620,11 @@ function MemberForm({
       if (existing)
         await api(
           `/admin/users/${existing.id}`,
-          { name, roles, active },
+          { name, title, roles, active },
           "PATCH",
         );
-      else if (roles.length === 1 && roles[0] === "judge") await api("/admin/judges", {name});
-      else await api("/admin/users", { name, username, password, roles });
+      else if (roles.length === 1 && roles[0] === "judge") await api("/admin/judges", {name, title});
+      else await api("/admin/users", { name, title, username, password, roles });
       await onSaved();
     } catch (e) {
       setError(errorMessage(e));
@@ -649,6 +650,7 @@ function MemberForm({
             maxLength={60}
           />
         </label>
+        <label>职务（选填）<input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={100} placeholder="用于评委入口的身份辨认" /></label>
         {(!!existing || roles.includes("admin")) && <label>
           登录账号
           <input
