@@ -6,7 +6,7 @@
 ## 服务设置
 
 - 使用根目录 Dockerfile，构建 React 页面与 NestJS 后端，Node.js 24。
-- 仅运行一个副本，对外 HTTP 服务端口为 `3001`。
+- 仅运行一个副本。镜像默认端口为 `3001`；当前 Zeabur 自动注入 `PORT=8080`，实际 HTTP 路由为 `8080`，应用和健康检查均读取该变量。
 - **首次启动前**创建持久化磁盘并挂载 `/data`；数据库为 `/data/finals.sqlite`。
 - Dockerfile 默认 `HOST=0.0.0.0`、`NODE_ENV=production`、`AUTH_MODE=feishu`、`COOKIE_SECURE=true`。
 - 容器内 PID 文件单独放 `/tmp/finals.server.pid`，不随业务数据备份；容器启动时清理其旧 PID。
@@ -45,10 +45,26 @@ npm run db:backup -- /data/backups/before-finals.sqlite
 ## 验证范围
 
 - 本地：构建、OAuth/权限/计分测试，以及 50 位评委 × 12 队提交测试。
-- 云端待验证：Docker 构建、HTTPS、磁盘持久化、停启后的数据与 PID 文件、飞书登录和角色、手机流量访问。
+- 云端已验证：Docker 构建成功、Node.js v24.21.0、健康检查 200、未登录 API 返回 401、本地密码登录返回 404；服务重启后持久化检查文件保留，SQLite integrity_check 为 ok，健康检查再次返回 200。检查文件已删除。
+- 云端待验证：HTTPS、正式数据迁移、飞书登录和角色、手机流量访问。当前空库的持久化验证不代表正式数据已迁移。
 - 健康检查仅证明进程及数据库可读取，不代表评分可写或 OAuth 配置完整。
 - 正式库不随意提交测试分数；完整评分演练使用另行约定的测试数据。
 - 域名使用需按 Zeabur 提供的预备案域名规则完成实名认证，并验证实际分配结果。
 - 服务器按月付费并可能自动续费；比赛结束先导出、备份和交付，再处理停用或续费设置。
 
-当前 Mac 未安装 Docker，因此本地构建与测试不能代替 Zeabur 上的镜像构建验证。
+## 2026-09-23 云端状态
+
+- 服务器：`Aliyun Beijing 2C 4GB`，ID `6ab375d188bd3c746fd58ab9`。
+- 项目：`ai-finals-scoring`，ID `6ab379ce76ea2bdcc9db9840`。
+- 环境：`6ab379ce36d2a6cac4934dc0`。
+- 服务：`scoring`，ID `6ab379f376ea2bdcc9db9857`。
+- 首次构建：`6ab37a425d7569a2d1c6d067`，部署代码提交 `e334c90`。
+- 持久化卷：`scoring-data`，挂载 `/data`，已确认真实磁盘挂载。
+- 控制台：https://zeabur.com/projects/6ab379ce76ea2bdcc9db9840/services/6ab379f376ea2bdcc9db9857?envID=6ab379ce36d2a6cac4934dc0
+- 预备案域名候选：`gambol-ai-finals-0928.preview.aliyun-zeabur.cn`，尚未确认绑定；由用户在平台阅读条款并完成实名认证。候选域名不能当作已可用入口。
+- 飞书配置尚未导入，登录接口当前返回 503，提示“飞书登录尚未完成服务器配置”。
+- 原公司内网服务、数据及已有回调未修改。
+
+给原部署同事的交接事项（草稿，未发送）：
+
+> 评分系统已在 Zeabur 的阿里云北京服务器上启动，需要协助接入现有飞书应用和迁移数据。请从当前运行实例确认 FEISHU_APP_ID、FEISHU_TENANT_KEY、FEISHU_SCOPE（如有），并将 FEISHU_APP_SECRET 直接配置到新服务的环境变量，避免写进聊天或仓库。请用系统现有 db:backup 工具生成 SQLite 一致性备份，保留评委、飞书身份绑定、赛事和分数；不要直接复制运行中的主数据库文件。公网域名确认后，还需在飞书应用后台新增对应 /api/auth/feishu/callback 回调，保留旧回调供切换期间使用。正式切换前一起核对人数、分数数量与赛事状态。
