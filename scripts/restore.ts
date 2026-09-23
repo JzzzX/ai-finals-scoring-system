@@ -13,7 +13,7 @@ async function main() {
   const source = process.argv[2];
   if (!source) throw new Error("用法：npm run db:restore -- 备份文件");
   const target = resolve(process.env.DB_PATH || "./data/finals.sqlite");
-  const lock = target + ".server.pid";
+  const lock = resolve(process.env.PID_PATH || target + ".server.pid");
   if (existsSync(lock)) {
     const pid = Number(readFileSync(lock, "utf8"));
     try {

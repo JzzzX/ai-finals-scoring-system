@@ -3,7 +3,7 @@ import { writeFileSync, existsSync, readFileSync, unlinkSync } from "node:fs";
 import { resolve } from "node:path";
 async function main() {
   const dbPath = process.env.DB_PATH || "./data/finals.sqlite",
-    lock = resolve(dbPath + ".server.pid");
+    lock = resolve(process.env.PID_PATH || dbPath + ".server.pid");
   if (existsSync(lock)) {
     const pid = Number(readFileSync(lock, "utf8"));
     try {

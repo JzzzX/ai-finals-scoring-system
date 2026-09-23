@@ -1,0 +1,16 @@
+.git
+node_modules
+dist
+.env
+.env.*
+data
+*.sqlite
+*.sqlite-*
+*.db
+*.server.pid
+*.log
+artifacts
+docs
+tests
+draft_7b78d6da_folder
+.DS_Store

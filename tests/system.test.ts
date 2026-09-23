@@ -334,12 +334,12 @@ test("备份与恢复 CLI：在线备份、运行中拒绝恢复、旧库恢复�
     path = join(dir, "main.sqlite"),
     backup = join(dir, "snapshot.sqlite");
   const { store, service: s, admin, judge } = await setup(path);
-  const cli = (script: string, args: string[] = []) =>
+  const cli = (script: string, args: string[] = [], pidPath = "") =>
     execFileSync(
       process.execPath,
       ["--import", "tsx", `scripts/${script}.ts`, ...args],
       {
-        env: { ...process.env, DB_PATH: path },
+        env: { ...process.env, DB_PATH: path, PID_PATH: pidPath },
         encoding: "utf8",
         stdio: "pipe",
       },
@@ -356,6 +356,10 @@ test("备份与恢复 CLI：在线备份、运行中拒绝恢复、旧库恢复�
     writeFileSync(path + ".server.pid", String(process.pid));
     assert.throws(() => cli("restore", [backup]), /先停止/);
     unlinkSync(path + ".server.pid");
+    const containerPid = join(dir, "container.server.pid");
+    writeFileSync(containerPid, String(process.pid));
+    assert.throws(() => cli("restore", [backup], containerPid), /先停止/);
+    unlinkSync(containerPid);
     cli("restore", [backup]);
     const restored = new Store(path);
     try {
