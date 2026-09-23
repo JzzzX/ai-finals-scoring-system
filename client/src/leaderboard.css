@@ -1,0 +1,343 @@
+/* Opaque backgrounds also cover the browser's fullscreen backdrop. */
+.admin-main .leaderboard,
+.admin-main .leaderboard:fullscreen {
+  background: #f7f6f2;
+  color: #304c43;
+}
+.admin-main .leaderboard:fullscreen {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 26px clamp(24px, 4vw, 80px);
+  overflow-y: auto;
+  border: 0;
+  border-radius: 0;
+}
+.leaderboard::backdrop {
+  background: #f7f6f2;
+}
+.board-actions {
+  flex-wrap: wrap;
+}
+.board-export-message {
+  color: #36584b;
+  font-size: 15px;
+  padding-top: 14px;
+}
+.ranking-section-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 30px 0 16px;
+}
+.ranking-section-title h2 {
+  font-size: 24px;
+  font-weight: 400;
+}
+.ranking-section-title > span {
+  color: #64715f;
+  font-size: 14px;
+}
+.podium-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+.podium-card {
+  position: relative;
+  overflow: hidden;
+  padding: 24px;
+  border: 1px solid #d8d9cc;
+  border-radius: 12px;
+  background: #eeeee7;
+}
+.podium-card.place-1 {
+  background: #eee4cb;
+  border-color: #d5be85;
+}
+.podium-card.place-2 {
+  background: #e6ebe5;
+  border-color: #c5cec4;
+}
+.podium-card.place-3 {
+  background: #efe3d9;
+  border-color: #dbc5b3;
+}
+.podium-card::after {
+  content: "";
+  position: absolute;
+  right: -40px;
+  top: -65px;
+  width: 175px;
+  height: 175px;
+  border: 1px solid #ffffff90;
+  border-radius: 50%;
+  pointer-events: none;
+}
+.podium-rank {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #756443;
+  margin-bottom: 22px;
+  font-size: 19px;
+}
+.podium-card .team-name {
+  font: 400 22px/1.6 var(--font-ui);
+  min-height: 70px;
+  margin: 0;
+}
+.podium-card p {
+  color: #64715f;
+  font-size: 14px;
+  margin-top: 8px;
+}
+.podium-score {
+  display: block;
+  margin-top: 20px;
+  font-size: 48px;
+  font-weight: 400;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+.podium-score small {
+  font-size: 18px;
+  color: #786b54;
+}
+.ranking-empty {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 26px;
+  margin-top: 24px;
+  border: 1px dashed #c9cdbd;
+  border-radius: 12px;
+  color: #64715f;
+}
+.ranking-empty h2 {
+  font-size: 22px;
+  font-weight: 400;
+  color: #304c43;
+}
+.ranking-empty p {
+  font-size: 16px;
+  margin-top: 8px;
+}
+.leaderboard .leader-grid,
+.leaderboard:fullscreen .leader-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0;
+  margin: 0;
+  border-top: 1px solid #dce1d7;
+}
+.admin-main .leaderboard .leader-card {
+  border: 0;
+  border-bottom: 1px solid #dce1d7;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 20px 16px;
+  min-height: 116px;
+  gap: 26px;
+}
+.admin-main .leaderboard .leader-card.leading {
+  background: #ece9df70;
+  box-shadow: none;
+}
+.leaderboard .leader-rank {
+  flex-basis: 64px;
+  color: #64715f;
+}
+.leaderboard .leader-rank strong {
+  display: block;
+  font-size: 34px;
+  font-weight: 400;
+  line-height: 1.1;
+}
+.leaderboard .leader-rank small {
+  font-size: 13px;
+  margin-top: 6px;
+}
+.leaderboard .place-1 .leader-rank {
+  color: #97732d;
+}
+.leaderboard .place-2 .leader-rank {
+  color: #657665;
+}
+.leaderboard .place-3 .leader-rank {
+  color: #93694d;
+}
+.leaderboard .leader-info .team-name {
+  font-size: 20px;
+  margin: 4px 0 10px;
+}
+.leaderboard .leader-info {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 160px;
+  column-gap: 28px;
+  align-items: center;
+}
+.leaderboard .leader-info > span,
+.leaderboard .leader-info h2 {
+  grid-column: 1;
+}
+.leaderboard .leader-info > small {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  text-align: right;
+}
+.leaderboard .leader-meter {
+  grid-column: 1 / -1;
+  background: #e1e4da;
+  margin: 0;
+  height: 3px;
+}
+.leaderboard .leader-score {
+  flex-basis: 108px;
+}
+.leaderboard .leader-score strong {
+  font-size: 36px;
+}
+.leaderboard .leader-score span {
+  font-size: 14px;
+  white-space: nowrap;
+}
+@media (min-width: 1600px) {
+  .leaderboard:fullscreen .leader-grid {
+    grid-template-columns: 1fr 1fr;
+    column-gap: 40px;
+  }
+  .leaderboard:fullscreen .leader-info {
+    display: block;
+  }
+  .leaderboard:fullscreen .leader-info > small {
+    text-align: left;
+    margin-top: 5px;
+  }
+}
+@media (max-width: 899px) {
+  .podium-grid {
+    grid-template-columns: 1fr;
+  }
+  .podium-card {
+    padding: 20px;
+  }
+  .podium-card .team-name {
+    min-height: 0;
+    padding-right: 85px;
+    font-size: 20px;
+  }
+  .podium-score {
+    position: absolute;
+    right: 20px;
+    top: 40px;
+    font-size: 34px;
+  }
+  .podium-score small {
+    display: block;
+    font-size: 14px;
+    text-align: right;
+  }
+  .podium-rank {
+    margin-bottom: 12px;
+    font-size: 17px;
+  }
+  .ranking-section-title > span {
+    font-size: 13px;
+  }
+  .ranking-section-title h2 {
+    font-size: 22px;
+  }
+  .admin-main .leaderboard .leader-card {
+    gap: 12px;
+    padding: 18px 0;
+  }
+  .leaderboard .leader-rank {
+    flex-basis: 32px;
+  }
+  .leaderboard .leader-rank strong {
+    font-size: 26px;
+  }
+  .leaderboard .leader-rank small {
+    font-size: 12px;
+  }
+  .leaderboard .leader-info {
+    display: block;
+  }
+  .leaderboard .leader-info .team-name {
+    font-size: 18px;
+  }
+  .leaderboard .leader-info > small {
+    text-align: left;
+    margin-top: 6px;
+    font-size: 13px;
+  }
+  .leaderboard .leader-score {
+    flex-basis: 62px;
+  }
+  .leaderboard .leader-score strong {
+    font-size: 28px;
+  }
+  .leaderboard .leader-score span {
+    font-size: 12px;
+  }
+  .ranking-empty {
+    padding: 20px 16px;
+    align-items: flex-start;
+  }
+  .ranking-empty > svg {
+    flex-shrink: 0;
+  }
+  .board-actions {
+    gap: 8px;
+  }
+  .board-actions > a,
+  .board-actions > button {
+    padding: 8px;
+    font-size: 13px;
+  }
+}
+@media (min-width: 1200px) {
+  .leaderboard:fullscreen .leader-grid {
+    grid-template-columns: 1fr 1fr;
+    column-gap: 28px;
+  }
+  .admin-main .leaderboard:fullscreen .board-heading {
+    padding: 18px 0;
+  }
+  .leaderboard:fullscreen .ranking-section-title {
+    margin: 20px 0 12px;
+  }
+  .leaderboard:fullscreen .podium-card {
+    padding: 18px 22px;
+  }
+  .leaderboard:fullscreen .podium-rank {
+    margin-bottom: 10px;
+  }
+  .leaderboard:fullscreen .podium-card .team-name {
+    min-height: 0;
+    font-size: 21px;
+  }
+  .leaderboard:fullscreen .podium-score {
+    margin-top: 10px;
+    font-size: 36px;
+  }
+  .admin-main .leaderboard:fullscreen .leader-card {
+    padding: 12px 8px;
+    min-height: 96px;
+  }
+  .leaderboard:fullscreen .leader-info {
+    display: block;
+  }
+  .leaderboard:fullscreen .leader-info > small {
+    text-align: left;
+    margin-top: 5px;
+  }
+  .leaderboard:fullscreen .leader-info .team-name {
+    font-size: 18px;
+    margin: 2px 0 6px;
+  }
+}

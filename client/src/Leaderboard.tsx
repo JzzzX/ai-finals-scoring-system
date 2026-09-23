@@ -1,6 +1,15 @@
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, Download, Maximize, Minimize, Trophy } from "lucide-react";
+import {
+  ArrowLeft,
+  Download,
+  Maximize,
+  Minimize,
+  Trophy,
+  ImageDown,
+} from "lucide-react";
 import type { Results } from "../../shared/types";
+import { leaderboardModel } from "./leaderboard-model";
+import { exportLeaderboardPng } from "./leaderboard-export";
 
 export function Leaderboard({
   data,
@@ -14,21 +23,29 @@ export function Leaderboard({
   const ref = useRef<HTMLElement>(null);
   const [full, setFull] = useState(false);
   const [fullError, setFullError] = useState("");
+  const [exporting, setExporting] = useState(false);
+  const [exportMessage, setExportMessage] = useState("");
   useEffect(() => {
     const sync = () => setFull(document.fullscreenElement === ref.current);
     document.addEventListener("fullscreenchange", sync);
     return () => document.removeEventListener("fullscreenchange", sync);
   }, []);
-  const complete = data.expected > 0 && data.total === data.expected;
-  const final = complete && data.contest.status === "closed";
-  const rows = [...data.rows].sort(
-    (a, b) =>
-      (a.rank ?? Infinity) - (b.rank ?? Infinity) ||
-      a.team.order - b.team.order,
-  );
-  const received = data.rows.filter(
-    (r) => r.count === data.judges.length && r.count > 0,
-  ).length;
+  const { rows, podium, complete, final, received, tied } =
+    leaderboardModel(data);
+  async function exportImage() {
+    setExporting(true);
+    setExportMessage("");
+    try {
+      await exportLeaderboardPng(data, Boolean(error));
+      setExportMessage("榜单图片已生成，包含当前评分进度与数据时间。");
+    } catch (e) {
+      setExportMessage(
+        e instanceof Error ? e.message : "图片生成失败，请重试。",
+      );
+    } finally {
+      setExporting(false);
+    }
+  }
   async function toggleFullscreen() {
     try {
       if (document.fullscreenElement) await document.exitFullscreen();
@@ -47,13 +64,21 @@ export function Leaderboard({
         </button>
         <span className="board-breadcrumb">/ 实时榜单</span>
         <div className="board-actions">
+          <button
+            className="text-button"
+            disabled={exporting}
+            onClick={() => void exportImage()}
+          >
+            <ImageDown size={17} />
+            {exporting ? "正在生成…" : "导出榜单图片"}
+          </button>
           <a
             className="text-button"
             href="/api/admin/export?mode=summary"
             download
           >
             <Download size={17} />
-            导出排名
+            导出 CSV
           </a>
           <button
             className="text-button"
@@ -64,6 +89,11 @@ export function Leaderboard({
           </button>
         </div>
       </div>
+      {exportMessage && (
+        <p className="board-export-message" role="status">
+          {exportMessage}
+        </p>
+      )}
       <header className="board-heading">
         <div>
           <div className="board-eyebrow">GAMBOL · AI INNOVATION 2026</div>
@@ -121,24 +151,68 @@ export function Leaderboard({
                 : "评分进行中，按已提交分数计算平均分；收齐前排名可能变化。"}
         </p>
       )}
+      {podium.length > 0 ? (
+        <section className="podium-section" aria-label="当前前三名">
+          <div className="ranking-section-title">
+            <h2>{final ? "荣誉榜" : "当前领先"}</h2>
+            <span>{final ? "决赛成绩" : "暂定名次 · 以最终结果为准"}</span>
+          </div>
+          <div className="podium-grid">
+            {podium.map((r) => (
+              <article
+                key={r.team.id}
+                className={`podium-card place-${r.rank}`}
+              >
+                <div className="podium-rank">
+                  <Trophy size={22} />
+                  <span>
+                    第 {r.rank} 名{tied(r.rank) ? " · 并列" : ""}
+                  </span>
+                </div>
+                <h2 className="team-name">{r.team.name}</h2>
+                <p>
+                  第 {String(r.team.order).padStart(2, "0")} 组 · {r.count}/
+                  {data.judges.length} 位已评
+                </p>
+                <strong className="podium-score">
+                  {r.average?.toFixed(2)}
+                  <small> / 10</small>
+                </strong>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : (
+        <div className="ranking-empty">
+          <Trophy size={26} />
+          <div>
+            <h2>等待首份评分</h2>
+            <p>评分提交后，名次与领先队伍将在这里自动更新。</p>
+          </div>
+        </div>
+      )}
+      <div className="ranking-section-title">
+        <h2>完整排名</h2>
+        <span>
+          {rows.length} 支队伍 · {final ? "最终成绩" : "实时更新"}
+        </span>
+      </div>
       <div className="leader-grid">
         {rows.map((r) => (
           <article
             key={r.team.id}
-            className={`leader-card ${r.rank && r.rank <= 3 ? "leading" : ""}`}
+            className={`leader-card ${r.rank && r.rank <= 3 ? `leading place-${r.rank}` : ""}`}
           >
             <div
               className="leader-rank"
               aria-label={r.rank ? `第 ${r.rank} 名` : "未排名"}
             >
-              {r.rank === 1 ? (
-                <Trophy size={23} />
-              ) : r.rank ? (
-                String(r.rank).padStart(2, "0")
-              ) : (
-                "—"
-              )}
-              {r.rank === 1 && <small>01</small>}
+              <strong>
+                {r.rank === null ? "—" : String(r.rank).padStart(2, "0")}
+              </strong>
+              <small>
+                {r.rank === null ? "未排名" : tied(r.rank) ? "并列" : "名次"}
+              </small>
             </div>
             <div className="leader-info">
               <span>
@@ -148,7 +222,7 @@ export function Leaderboard({
                   ? " · 并列"
                   : ""}
               </span>
-              <h2>{r.team.name}</h2>
+              <h2 className="team-name">{r.team.name}</h2>
               <div className="leader-meter" aria-hidden="true">
                 <i style={{ width: `${(r.average ?? 0) * 10}%` }} />
               </div>

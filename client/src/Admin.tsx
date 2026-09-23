@@ -81,6 +81,7 @@ export function Admin({
         {sections.map(({ path, label, Icon }) => (
           <button
             key={path}
+            aria-current={route === path ? "page" : undefined}
             className={`${route === path ? "active" : ""} ${path === "/admin/display" ? "admin-subnav" : ""}`}
             onClick={() => navigate(path)}
           >
@@ -118,6 +119,10 @@ export function Admin({
           />
         )}
       </main>
+      <footer className="admin-footer">
+        <span>GAMBOL · AI INNOVATION</span>
+        <span>2026 乖宝 AI 先锋赛 · 赛事管理</span>
+      </footer>
     </div>
   );
 }
@@ -259,7 +264,7 @@ function ResultsPage({
                     ? (r.rank ?? "—")
                     : String(r.team.order).padStart(2, "0")}
                 </td>
-                <th className="team-col" scope="row">
+                <th className="team-col team-name" scope="row">
                   {r.team.name}
                 </th>
                 {data.judges.map((j) => (
@@ -301,7 +306,7 @@ function ResultsPage({
               {ranked ? (r.rank ?? "—") : String(r.team.order).padStart(2, "0")}
             </span>
             <span className="mobile-result-name">
-              <strong>{r.team.name}</strong>
+              <strong className="team-name">{r.team.name}</strong>
               <small>
                 {data.judges.length
                   ? `${r.count}/${data.judges.length} 位已评 · ${r.count < data.judges.length ? "尚未收齐" : "已收齐"}`
@@ -380,7 +385,7 @@ function ScoreDetail({
   }, [fetchAudit]);
   return (
     <Modal title="队伍评分详情" onClose={onClose} wide>
-      <h3>{row.team.name}</h3>
+      <h3 className="team-name">{row.team.name}</h3>
       <p className="muted">
         当前均分 {row.average?.toFixed(2) ?? "—"} ·{" "}
         {data.judges.length
@@ -623,8 +628,10 @@ function MemberForm({
           { name, title, roles, active },
           "PATCH",
         );
-      else if (roles.length === 1 && roles[0] === "judge") await api("/admin/judges", {name, title});
-      else await api("/admin/users", { name, title, username, password, roles });
+      else if (roles.length === 1 && roles[0] === "judge")
+        await api("/admin/judges", { name, title });
+      else
+        await api("/admin/users", { name, title, username, password, roles });
       await onSaved();
     } catch (e) {
       setError(errorMessage(e));
@@ -650,20 +657,30 @@ function MemberForm({
             maxLength={60}
           />
         </label>
-        <label>职务（选填）<input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={100} placeholder="用于评委入口的身份辨认" /></label>
-        {(!!existing || roles.includes("admin")) && <label>
-          登录账号
+        <label>
+          职务（选填）
           <input
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            required
-            minLength={3}
-            maxLength={40}
-            pattern="[a-zA-Z0-9_.\-]+"
-            disabled={!!existing}
-            placeholder="英文、数字、下划线或短横线"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            maxLength={100}
+            placeholder="用于评委入口的身份辨认"
           />
-        </label>}
+        </label>
+        {(!!existing || roles.includes("admin")) && (
+          <label>
+            登录账号
+            <input
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
+              minLength={3}
+              maxLength={40}
+              pattern="[a-zA-Z0-9_.\-]+"
+              disabled={!!existing}
+              placeholder="英文、数字、下划线或短横线"
+            />
+          </label>
+        )}
         {!existing && roles.includes("admin") && (
           <label>
             初始密码

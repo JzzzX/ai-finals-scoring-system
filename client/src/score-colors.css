@@ -1,0 +1,75 @@
+/* Current team, scoring and submission each have a distinct, calm colour. */
+.judge-shell .queue-item.selected {
+  background: #cbd8c6;
+  box-shadow: inset 3px 0 #4b6755;
+  border-radius: 9px;
+  color: #243e31;
+}
+.judge-shell .queue-item.selected::before {
+  background: #4b6755;
+}
+.judge-shell .queue-item.selected .muted {
+  color: #405a46;
+}
+.score-sheet .rating-card {
+  --blue: #85644b;
+  --gold: #a88765;
+  background: #eee5db;
+  border-color: #d6c5b2;
+  color: #594535;
+}
+.score-sheet .rating-card .muted,
+.score-sheet .rating-card .score-help,
+.score-sheet .rating-card .score-adjust > span,
+.score-sheet .rating-card .score-input-wrap > span {
+  color: #76624f;
+}
+.score-sheet .rating-card .score-input-wrap input {
+  background: #fffcf7;
+  border-color: #ad9275 !important;
+  color: #594535;
+}
+.score-sheet .rating-card .outline {
+  color: #6d513b;
+  border-color: #c9b59f;
+  background: #faf5ee;
+}
+.score-sheet .rating-card .slider-wrap input::-webkit-slider-runnable-track {
+  background: linear-gradient(
+    to right,
+    #85644b 0%,
+    #85644b var(--fill),
+    #dacfc2 var(--fill),
+    #dacfc2 100%
+  );
+}
+.score-sheet .rating-card .slider-wrap input::-moz-range-track {
+  background: #dacfc2;
+}
+.score-sheet .submit-bar {
+  background: #efe0b3;
+  border: 1px solid #d5bb76;
+  color: #604b24;
+  box-shadow: 0 5px 22px #6b512212;
+  backdrop-filter: none;
+}
+.score-sheet .submit-bar .submit-score,
+.score-sheet .submit-bar .submit-score b,
+.score-sheet .submit-bar .submit-score span,
+.score-sheet .submit-bar p {
+  color: #604b24;
+}
+.score-sheet .submit-bar .primary {
+  background: #99752f;
+  border-color: #99752f;
+  color: #fffdf5;
+}
+.score-sheet .submit-bar .primary:not(:disabled):hover {
+  background: #805f23;
+}
+.score-sheet .submit-bar .primary:disabled {
+  background: #c7af75;
+  border-color: #c7af75;
+  color: #5b4927;
+  opacity: 1;
+}

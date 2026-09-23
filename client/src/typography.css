@@ -1,0 +1,256 @@
+/* The supplied reference is the single typeface source for both workspaces. */
+:root {
+  --text-caption: 15px;
+  --text-body: 16px;
+  --text-team: 18px;
+  --weight-regular: 400;
+  --weight-medium: 400;
+  --weight-emphasis: 500;
+}
+:is(h1, h2, h3, button, input, select, textarea, th, strong, b) {
+  font-family: var(--font-ui);
+}
+:is(button, input, select, textarea) {
+  letter-spacing: normal;
+}
+:is(h1, h2, h3) {
+  font-weight: var(--weight-medium);
+  letter-spacing: 0;
+}
+:is(strong, b) {
+  font-weight: var(--weight-emphasis);
+}
+.entry-selection h2 {
+  font-family: var(--font-ui);
+  font-size: clamp(28px, 2.55vw, 40px);
+  font-weight: 400;
+}
+.admin-main .page-heading h1,
+.admin-main .board-heading h1 {
+  font: 400 36px/1.5 var(--font-ui);
+  letter-spacing: 0;
+}
+.queue-heading h2,
+.admin-main .settings-panel h2,
+.admin-login-main > h1 {
+  font: 400 24px/1.5 var(--font-ui);
+  letter-spacing: 0;
+}
+.modal-head h2 {
+  font: 400 22px/1.5 var(--font-ui);
+}
+/* A team's name uses the same face, weight and line spacing in every surface. */
+.team-name,
+.queue-item .team-name,
+.leader-info .team-name,
+.admin-main .score-matrix tbody .team-name,
+.mobile-result-name .team-name,
+.modal .team-name {
+  font-family: var(--font-ui);
+  font-size: var(--text-team);
+  font-weight: var(--weight-medium);
+  line-height: 1.6;
+  letter-spacing: 0;
+  word-break: normal;
+  overflow-wrap: anywhere;
+}
+.team-intro .team-name {
+  font-size: 28px;
+}
+.modal h3.team-name {
+  font-size: 20px;
+  margin-bottom: 10px;
+}
+.queue-item {
+  align-items: flex-start;
+}
+.queue-item .team-name {
+  font-size: var(--text-body);
+}
+.judge-details strong,
+.admin-main .user-details strong {
+  font: 400 22px/1.5 var(--font-ui);
+}
+.judge-avatar,
+.admin-main .user-avatar {
+  font-family: var(--font-ui);
+}
+.judge-confirm h3 {
+  font: 400 28px/1.5 var(--font-ui);
+}
+.member-list strong,
+.detail-scores strong {
+  font-size: var(--text-body);
+  font-weight: 400;
+}
+/* Keep digits aligned during polling, using the same family as surrounding text. */
+.score-input-wrap input,
+.submit-score b,
+.leader-score strong,
+.leader-rank,
+.board-stat strong,
+.admin-main .score-matrix .mean,
+.admin-main .summary-strip strong,
+.detail-scores .mean,
+.confirm-score {
+  font-family: var(--font-ui);
+  font-weight: var(--weight-medium);
+  font-variant-numeric: lining-nums tabular-nums;
+  letter-spacing: 0;
+}
+.admin-main .results-overview strong {
+  font: 400 26px/1.5 var(--font-ui);
+}
+.board-heading h1 > span {
+  font-family: var(--font-ui);
+  font-size: var(--text-caption);
+  font-weight: 400;
+}
+.leader-info > span,
+.leader-info > small {
+  font-size: var(--text-caption);
+  font-weight: 400;
+  line-height: 1.6;
+}
+.leader-score {
+  flex-basis: 84px;
+}
+.leader-score > span {
+  white-space: nowrap;
+  font-size: var(--text-caption);
+}
+.leader-score strong {
+  font-size: 30px;
+}
+@media (max-width: 899px) {
+  .entry-selection h2,
+  .admin-main .page-heading h1,
+  .admin-main .board-heading h1 {
+    font-size: 26px;
+  }
+  .team-intro .team-name {
+    font-size: 24px;
+  }
+  .admin-main .results-overview strong {
+    font-size: 23px;
+  }
+  .leader-info .team-name,
+  .mobile-result-name .team-name {
+    font-size: var(--text-body);
+  }
+  .leader-card {
+    gap: 10px;
+  }
+  .leader-rank {
+    flex-basis: 24px;
+  }
+  .leader-score {
+    flex-basis: 72px;
+  }
+  .leader-score strong {
+    font-size: 26px;
+  }
+  .leader-score > span {
+    font-size: 12px;
+  }
+}
+
+/* Override inherited emphasis consistently; no separate face for controls or data. */
+:where(
+    .judge-entry,
+    .admin-login,
+    .app-header,
+    .judge-shell,
+    .admin-shell,
+    .modal
+  )
+  :is(button, input, textarea, select, p, small, label, span, th, td) {
+  font-family: var(--font-ui);
+}
+.primary,
+.outline,
+.text-button,
+.admin-nav button.active,
+.queue-tabs button.active,
+.tabs button.active,
+.rating-card .score-label h2,
+.comment-card .comment-label,
+.criteria-toggle h2 {
+  font-weight: 500;
+}
+.entry-description,
+.judge-details small,
+.entry-philosophy,
+.admin-main .page-heading p,
+.admin-main .score-matrix,
+.admin-main .score-matrix thead th,
+.admin-main .results-overview small,
+.admin-main .primary,
+.admin-main .outline,
+.admin-nav button,
+.admin-nav .admin-subnav,
+.admin-login-form label,
+.admin-login-form input,
+.admin-login-form > p.muted,
+.admin-login-main > p,
+.board-heading p,
+.board-context,
+.board-sync,
+.team-byline,
+.score-help {
+  font-size: 16px;
+}
+.entry-hint,
+.form-note,
+.admin-main .form-note {
+  font-size: 14px;
+}
+.judge-number {
+  font-size: 16px;
+}
+.judge-details strong {
+  font-size: 23px;
+}
+.admin-main .user-details strong {
+  font-size: 22px;
+}
+.queue-item .team-name {
+  font-size: 17px;
+}
+.admin-main .score-matrix tbody .team-name {
+  font-size: 18px;
+}
+.admin-main .score-matrix .mean {
+  font-weight: 400;
+}
+@media (max-width: 899px) {
+  .admin-nav button,
+  .admin-nav .admin-subnav {
+    font-size: 14px;
+  }
+  .leader-info .team-name,
+  .mobile-result-name .team-name {
+    font-size: 17px;
+  }
+  .entry-description,
+  .judge-details small {
+    font-size: 15px;
+  }
+  .judge-details strong {
+    font-size: 22px;
+  }
+  .board-sync,
+  .board-heading p {
+    font-size: 14px;
+  }
+}
+@media (max-width: 540px) {
+  .admin-nav button svg {
+    display: none;
+  }
+  .admin-nav button,
+  .admin-nav .admin-subnav {
+    flex: 1;
+    justify-content: center;
+  }
+}

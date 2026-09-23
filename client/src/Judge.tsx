@@ -145,7 +145,7 @@ export function Judge({ session }: { session: SessionInfo }) {
                 <span className="queue-no">
                   {String(t.order).padStart(2, "0")}
                 </span>
-                <span className="queue-name">{t.name}</span>
+                <span className="queue-name team-name">{t.name}</span>
                 <span className="queue-score">
                   {score ? (
                     <>
@@ -351,9 +351,7 @@ function ScoreSheet({
           bytes[6] = (bytes[6] & 0x0f) | 0x40;
           bytes[8] = (bytes[8] & 0x3f) | 0x80;
 
-          const hex = [...bytes].map((b) =>
-            b.toString(16).padStart(2, "0"),
-          );
+          const hex = [...bytes].map((b) => b.toString(16).padStart(2, "0"));
 
           return [
             hex.slice(0, 4).join(""),
@@ -413,7 +411,7 @@ function ScoreSheet({
         </div>
         <div className="team-intro">
           <div>
-            <h1>{team.name}</h1>
+            <h1 className="team-name">{team.name}</h1>
             <p className="team-intro-caption">认真看见成果，让创新获得回响。</p>
           </div>
           <button
@@ -423,7 +421,7 @@ function ScoreSheet({
           >
             <img src={team.photo} alt={`${team.name}团队合照`} />
             <span>
-              认识这支团队 <ChevronRight size={13} />
+              查看合照 <ChevronRight size={13} />
             </span>
           </button>
         </div>
@@ -671,7 +669,7 @@ function ScoreSheet({
       </div>
       {members && (
         <Modal title="团队成员" onClose={() => setMembers(false)}>
-          <h3>{team.name}</h3>
+          <h3 className="team-name">{team.name}</h3>
           <img
             className="team-photo"
             src={team.photo}
@@ -710,7 +708,7 @@ function ScoreSheet({
       )}
       {confirm && (
         <Modal title="确认更新评分" onClose={() => setConfirm(false)}>
-          <p>{team.name}</p>
+          <p className="team-name">{team.name}</p>
           <p className="confirm-score">
             {saved?.score.toFixed(1)} <ArrowRight />{" "}
             {Number(draft.value).toFixed(1)} 分
