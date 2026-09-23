@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, type FormEvent } from "react";
 import { createRoot } from "react-dom/client";
 import { ArrowRight, LogOut, UserRound } from "lucide-react";
 import type { SessionInfo } from "../../shared/types";
@@ -40,35 +40,12 @@ function App() {
     setRoute(next);
   };
   useEffect(() => {
-    const oauthStatus = new URLSearchParams(location.search).get("feishu");
-
-    if (oauthStatus === "success")
-      setMessage("飞书登录成功。");
-    else if (oauthStatus === "bound")
-      setMessage("飞书账号绑定成功，后续可以直接使用飞书登录。");
-    else if (oauthStatus === "unbound")
-      setMessage(
-        "当前飞书账号尚未开通评分系统权限，请联系赛事管理员。",
-      );
-    else if (oauthStatus === "cancelled")
-      setMessage("飞书授权未完成，请重新使用飞书登录。");
-    else if (oauthStatus === "state_error")
-      setMessage("飞书登录状态校验失败，请重新发起登录。");
-    else if (oauthStatus === "error")
-      setMessage("飞书登录未完成，请重新使用飞书登录。");
-
-    if (oauthStatus) {
-      const url = new URL(location.href);
-      url.searchParams.delete("feishu");
-      history.replaceState({}, "", url.pathname + url.search + url.hash);
-    }
-
     const pop = () => setRoute(location.pathname);
     window.addEventListener("popstate", pop);
     const expired = () => {
       updateSession(null);
       setSession(null);
-      setMessage("");
+      setMessage("登录已过期，请重新登录；本机草稿仍然保留。");
     };
     window.addEventListener("session-expired", expired);
     void api<SessionInfo>("/me")
@@ -83,11 +60,6 @@ function App() {
       window.removeEventListener("session-expired", expired);
     };
   }, []);
-  useEffect(() => {
-    if (!loading && !session && !message)
-      window.location.replace("/api/auth/feishu/login");
-  }, [loading, session, message]);
-
   if (loading)
     return (
       <main className="recovery" role="status">
@@ -95,12 +67,18 @@ function App() {
       </main>
     );
   if (!session)
-    return message ? (
-      <OAuthAccess message={message} />
-    ) : (
-      <main className="recovery" role="status">
-        正在进入飞书登录…
-      </main>
+    return (
+      <Login
+        message={message}
+        onLogin={(s) => {
+          setSession(s);
+          updateSession(s);
+          setMessage("");
+          navigate(
+            s.user.roles.includes("judge") ? "/score" : "/admin/results",
+          );
+        }}
+      />
     );
   const isAdmin = route.startsWith("/admin"),
     allowed = session.user.roles.includes(isAdmin ? "admin" : "judge");
@@ -166,25 +144,91 @@ function App() {
     </>
   );
 }
-function OAuthAccess({ message }: { message: string }) {
+function Login({
+  onLogin,
+  message,
+}: {
+  onLogin: (s: SessionInfo) => void;
+  message: string;
+}) {
+  const [username, setUsername] = useState(""),
+    [password, setPassword] = useState(""),
+    [error, setError] = useState(""),
+    [busy, setBusy] = useState(false);
+  async function login(e: FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      onLogin(await api<SessionInfo>("/login", { username, password }));
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  }
   return (
-    <main className="recovery">
-      <Brand />
-      <h1>飞书身份暂未获得访问权限</h1>
-      <p>{message}</p>
-      <button
-        className="primary"
-        onClick={() =>
-          window.location.assign("/api/auth/feishu/login")
-        }
-      >
-        重新使用飞书登录
-        <ArrowRight size={18} />
-      </button>
-    </main>
+    <div className="login-page">
+      <header>
+        <Brand />
+      </header>
+      <main className="login-layout">
+        <section className="login-intro">
+          <div className="gold-line" />
+          <h1>
+            让每一份创新，
+            <br />
+            被认真看见。
+          </h1>
+          <p>
+            2026 乖宝 AI 先锋赛<span>决赛评分</span>
+          </p>
+          <div className="login-rules">
+            <strong>12 支团队，同场呈现。</strong>
+            <p>
+              以实际成果为依据，
+              <br />
+              用专业判断，为创新打分。
+            </p>
+          </div>
+        </section>
+        <form className="login-form" onSubmit={(e) => void login(e)}>
+          <h2>登录评分系统</h2>
+          <p className="muted">使用管理员为你开通的账号</p>
+          {(error || message) && <Notice>{error || message}</Notice>}
+          <label>
+            账号
+            <input
+              autoComplete="username"
+              autoFocus
+              required
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="请输入账号"
+            />
+          </label>
+          <label>
+            密码
+            <input
+              type="password"
+              autoComplete="current-password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="请输入密码"
+            />
+          </label>
+          <button className="primary" disabled={busy}>
+            {busy ? "正在登录…" : "进入评分系统"}
+            <ArrowRight size={18} />
+          </button>
+          <p className="form-note">账号或权限问题，请联系赛事管理员。</p>
+        </form>
+      </main>
+      <footer>2026 乖宝 AI 先锋赛</footer>
+    </div>
   );
 }
-
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <ErrorBoundary>

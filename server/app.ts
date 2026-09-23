@@ -47,13 +47,18 @@ const cookieOptions = () => ({
 });
 
 const oauthOnly = () =>
-  process.env.NODE_ENV === "production" &&
-  process.env.AUTH_MODE === "feishu";
+  process.env.NODE_ENV === "production" && process.env.AUTH_MODE === "feishu";
 @Injectable()
 class SessionGuard implements CanActivate {
   constructor(@Inject(FinalsService) private service: FinalsService) {}
   canActivate(context: ExecutionContext) {
     const req = context.switchToHttp().getRequest<AuthRequest>();
+    if (
+      process.env.AUTH_MODE !== "feishu" &&
+      (req.path.startsWith("/api/auth/feishu/") ||
+        req.path.startsWith("/api/admin/feishu-"))
+    )
+      throw new NotFoundException();
     if (
       [
         "/api/login",
@@ -124,10 +129,7 @@ class Api {
     if (!feishuConfigured())
       throw new HttpException("飞书登录尚未完成服务器配置", 503);
 
-    const state = this.service.createOAuthState(
-      "bind",
-      req.identity.user.id,
-    );
+    const state = this.service.createOAuthState("bind", req.identity.user.id);
 
     res.cookie("finals_feishu_state", state, {
       httpOnly: true,
@@ -176,13 +178,9 @@ class Api {
       let userId: string | null;
 
       if (pending.mode === "bind") {
-        if (!pending.userId)
-          throw new Error("绑定状态缺少评分系统用户");
+        if (!pending.userId) throw new Error("绑定状态缺少评分系统用户");
 
-        this.service.bindExternalIdentity(
-          pending.userId,
-          identity,
-        );
+        this.service.bindExternalIdentity(pending.userId, identity);
 
         userId = pending.userId;
       } else {
@@ -214,9 +212,7 @@ class Api {
 
       return res.redirect(
         302,
-        `${target}?feishu=${
-          pending.mode === "bind" ? "bound" : "success"
-        }`,
+        `${target}?feishu=${pending.mode === "bind" ? "bound" : "success"}`,
       );
     } catch (error) {
       clearOAuthCookie();
@@ -275,32 +271,16 @@ class Api {
   }
 
   @Get("admin/feishu-users/search")
-  async searchFeishuUsers(
-    @Req() req: AuthRequest,
-    @Query("q") query?: string,
-  ) {
-    return this.service.searchFeishuUsers(
-      req.identity.user.id,
-      query || "",
-    );
+  async searchFeishuUsers(@Req() req: AuthRequest, @Query("q") query?: string) {
+    return this.service.searchFeishuUsers(req.identity.user.id, query || "");
   }
 
   @Post("admin/feishu-users/authorize")
-  async authorizeFeishuUser(
-    @Req() req: AuthRequest,
-    @Body() body: unknown,
-  ) {
-    return this.service.authorizeFeishuUser(
-      req.identity.user.id,
-      body,
-    );
+  async authorizeFeishuUser(@Req() req: AuthRequest, @Body() body: unknown) {
+    return this.service.authorizeFeishuUser(req.identity.user.id, body);
   }
-  @Get("admin/feishu-pending") feishuPending(
-    @Req() req: AuthRequest,
-  ) {
-    return this.service.pendingExternalIdentities(
-      req.identity.user.id,
-    );
+  @Get("admin/feishu-pending") feishuPending(@Req() req: AuthRequest) {
+    return this.service.pendingExternalIdentities(req.identity.user.id);
   }
   @Post("admin/users") createUser(
     @Req() req: AuthRequest,

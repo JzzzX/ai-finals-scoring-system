@@ -79,12 +79,14 @@ test("飞书登录路由生成 state，bind 必须已有本地 Session", async (
   const dbPath = join(dir, "oauth.sqlite");
 
   const previous = {
+    authMode: process.env.AUTH_MODE,
     appId: process.env.FEISHU_APP_ID,
     appSecret: process.env.FEISHU_APP_SECRET,
     redirect: process.env.FEISHU_REDIRECT_URI,
     cookieSecure: process.env.COOKIE_SECURE,
   };
 
+  process.env.AUTH_MODE = "feishu";
   process.env.FEISHU_APP_ID = "cli_test";
   process.env.FEISHU_APP_SECRET = "secret_test";
   process.env.FEISHU_REDIRECT_URI =
@@ -114,9 +116,7 @@ test("飞书登录路由生成 state，bind 必须已有本地 Session", async (
     assert.match(stateCookies[0], /HttpOnly/i);
     assert.match(stateCookies[0], /SameSite=Lax/i);
 
-    await request(http)
-      .get("/api/auth/feishu/bind")
-      .expect(401);
+    await request(http).get("/api/auth/feishu/bind").expect(401);
 
     const admin = await service.createUser({
       username: "routeadmin",
@@ -155,6 +155,9 @@ test("飞书登录路由生成 state，bind 必须已有本地 Session", async (
   } finally {
     await app.close();
     store.close();
+
+    if (previous.authMode === undefined) delete process.env.AUTH_MODE;
+    else process.env.AUTH_MODE = previous.authMode;
 
     if (previous.appId === undefined) delete process.env.FEISHU_APP_ID;
     else process.env.FEISHU_APP_ID = previous.appId;
