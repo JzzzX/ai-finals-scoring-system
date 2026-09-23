@@ -5,7 +5,6 @@ import {
   Settings2,
   Download,
   ChevronRight,
-  Plus,
   ShieldCheck,
   Clock3,
   Search,
@@ -476,6 +475,22 @@ function AuditList({ rows }: { rows: AuditEvent[] }) {
   );
 }
 type ScoreBefore = { score: number };
+type FeishuSearchUser = {
+  tenantId: string;
+  openId: string;
+  unionId?: string;
+  userId?: string;
+  name: string;
+  enName?: string;
+  avatarUrl?: string;
+  departmentIds: string[];
+  authorization: {
+    userId: string;
+    roles: Role[];
+    active: boolean;
+  } | null;
+};
+
 function Members({
   currentId,
   data,
@@ -485,233 +500,447 @@ function Members({
   data: Results;
   refresh: () => Promise<void>;
 }) {
-  const [users, setUsers] = useState<User[]>([]),
-    [error, setError] = useState(""),
-    [editing, setEditing] = useState<User | "new" | null>(null),
-    [reset, setReset] = useState<User | null>(null),
-    [query, setQuery] = useState("");
+  const [users, setUsers] = useState<User[]>([]);
+  const [error, setError] = useState("");
+  const [query, setQuery] = useState("");
+  const [searching, setSearching] = useState(false);
+  const [directoryError, setDirectoryError] = useState("");
+  const [results, setResults] = useState<FeishuSearchUser[]>([]);
+  const [selected, setSelected] =
+    useState<FeishuSearchUser | null>(null);
+  const [editing, setEditing] =
+    useState<User | null>(null);
+
   const load = useCallback(async () => {
     try {
-      setUsers(await api<User[]>("/admin/users"));
+      setUsers(
+        await api<User[]>("/admin/users"),
+      );
       setError("");
     } catch (e) {
       setError(errorMessage(e));
     }
   }, []);
+
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    const value = query.trim();
+
+    if (!value) {
+      setResults([]);
+      setDirectoryError("");
+      setSearching(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    const timer = window.setTimeout(() => {
+      setSearching(true);
+      setDirectoryError("");
+
+      void api<FeishuSearchUser[]>(
+        `/admin/feishu-users/search?q=${encodeURIComponent(value)}`,
+      )
+        .then((rows) => {
+          if (!cancelled)
+            setResults(rows);
+        })
+        .catch((e) => {
+          if (!cancelled) {
+            setResults([]);
+            setDirectoryError(
+              errorMessage(e),
+            );
+          }
+        })
+        .finally(() => {
+          if (!cancelled)
+            setSearching(false);
+        });
+    }, 350);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [query]);
+
   return (
     <>
       <div className="page-heading">
         <div>
           <h1>成员与权限</h1>
-          <p>分配角色，让每个人只看到需要的内容。</p>
+          <p>
+            从飞书通讯录搜索人员，并配置管理员或评委权限。
+          </p>
         </div>
-        <button className="primary" onClick={() => setEditing("new")}>
-          <Plus size={18} />
-          添加成员
-        </button>
       </div>
+
       {data.contest.status !== "draft" && (
         <Notice>
-          本场评委名单已固定。新建评委不会自动加入本场；停用账号或移除角色不会删除已有成绩。
+          本场评委名单已固定。新增评委不会自动加入本场；停用成员或移除评委角色不会删除已有成绩。
         </Notice>
       )}
+
       {error && (
         <Notice>
           {error}
-          <button className="text-button" onClick={() => void load()}>
+          <button
+            className="text-button"
+            onClick={() => void load()}
+          >
             重试
           </button>
         </Notice>
       )}
+
       <label className="search-field">
         <Search size={18} />
         <input
-          aria-label="搜索成员"
-          placeholder="搜索姓名或账号"
+          aria-label="搜索飞书人员"
+          placeholder="搜索飞书姓名，例如：王飞亚"
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) =>
+            setQuery(e.target.value)
+          }
         />
       </label>
-      <div className="users-list">
-        {users
-          .filter((u) =>
-            (u.name + u.username).toLowerCase().includes(query.toLowerCase()),
-          )
-          .map((u) => (
-            <div className="user-row" key={u.id}>
-              <span className="user-avatar">{u.name.slice(0, 1)}</span>
-              <div className="user-details">
-                <strong>
-                  {u.name}
-                  {u.id === currentId && <small>（你）</small>}
-                </strong>
-                <span>{u.username}</span>
-              </div>
-              <div className="user-roles">
-                {u.roles.map((r) => (
-                  <span key={r} className={`role role-${r}`}>
-                    {r === "admin" ? "管理员" : "评委"}
-                  </span>
-                ))}
-                <small>
-                  {u.active ? "账号正常" : "已停用"}
-                  {data.contest.roster.includes(u.id) ? " · 本场评委" : ""}
-                </small>
-              </div>
-              <div className="user-actions">
-                <button className="text-button" onClick={() => setEditing(u)}>
-                  编辑权限
-                </button>
-                <button
-                  className="text-button muted"
-                  onClick={() => setReset(u)}
+
+      {query.trim() && (
+        <>
+          <h3 className="section-heading">
+            <Search size={18} />
+            飞书搜索结果
+          </h3>
+
+          {directoryError && (
+            <Notice>
+              {directoryError}
+            </Notice>
+          )}
+
+          {searching ? (
+            <p className="muted">
+              正在搜索飞书通讯录…
+            </p>
+          ) : results.length ? (
+            <div className="users-list">
+              {results.map((person) => (
+                <div
+                  className="user-row"
+                  key={person.openId}
                 >
-                  重置密码
-                </button>
-              </div>
+                  <span className="user-avatar">
+                    {person.name.slice(0, 1)}
+                  </span>
+
+                  <div className="user-details">
+                    <strong>
+                      {person.name}
+                    </strong>
+                    <span>
+                      {person.userId
+                        ? `飞书工号 ${person.userId}`
+                        : "飞书通讯录成员"}
+                    </span>
+                  </div>
+
+                  <div className="user-roles">
+                    {person.authorization?.roles.map(
+                      (role) => (
+                        <span
+                          key={role}
+                          className={`role role-${role}`}
+                        >
+                          {role === "admin"
+                            ? "管理员"
+                            : "评委"}
+                        </span>
+                      ),
+                    )}
+
+                    <small>
+                      {person.authorization
+                        ? person.authorization.active
+                          ? "已配置权限"
+                          : "已配置 · 当前停用"
+                        : "尚未配置"}
+                    </small>
+                  </div>
+
+                  <div className="user-actions">
+                    <button
+                      className="text-button"
+                      onClick={() =>
+                        setSelected(person)
+                      }
+                    >
+                      {person.authorization
+                        ? "重新配置"
+                        : "配置权限"}
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
+          ) : (
+            !directoryError && (
+              <p className="muted">
+                没有找到匹配的飞书人员。
+              </p>
+            )
+          )}
+        </>
+      )}
+
+      <h3 className="section-heading">
+        <UsersRound size={18} />
+        已配置成员
+      </h3>
+
+      <div className="users-list">
+        {users.map((user) => (
+          <div
+            className="user-row"
+            key={user.id}
+          >
+            <span className="user-avatar">
+              {user.name.slice(0, 1)}
+            </span>
+
+            <div className="user-details">
+              <strong>
+                {user.name}
+                {user.id === currentId && (
+                  <small>（你）</small>
+                )}
+              </strong>
+              <span>飞书登录成员</span>
+            </div>
+
+            <div className="user-roles">
+              {user.roles.map((role) => (
+                <span
+                  key={role}
+                  className={`role role-${role}`}
+                >
+                  {role === "admin"
+                    ? "管理员"
+                    : "评委"}
+                </span>
+              ))}
+
+              <small>
+                {user.active
+                  ? "已启用"
+                  : "已停用"}
+                {data.contest.roster.includes(
+                  user.id,
+                )
+                  ? " · 本场评委"
+                  : ""}
+              </small>
+            </div>
+
+            <div className="user-actions">
+              <button
+                className="text-button"
+                onClick={() =>
+                  setEditing(user)
+                }
+              >
+                编辑权限
+              </button>
+            </div>
+          </div>
+        ))}
       </div>
+
       <p className="form-note">
         <ShieldCheck size={15} />
         管理员不会自动获得评分资格；评分需要评委角色及本场名单资格。
       </p>
-      {editing && (
-        <MemberForm
-          user={editing}
-          onClose={() => setEditing(null)}
+
+      {selected && (
+        <FeishuPermissionForm
+          person={selected}
+          onClose={() =>
+            setSelected(null)
+          }
           onSaved={async () => {
-            setEditing(null);
+            setSelected(null);
+            setQuery("");
+            setResults([]);
+
             await load();
             await refresh();
           }}
         />
       )}
-      {reset && <PasswordForm user={reset} onClose={() => setReset(null)} />}
+
+      {editing && (
+        <MemberPermissionForm
+          user={editing}
+          onClose={() =>
+            setEditing(null)
+          }
+          onSaved={async () => {
+            setEditing(null);
+
+            await load();
+            await refresh();
+          }}
+        />
+      )}
     </>
   );
 }
-function MemberForm({
-  user,
+
+function RoleSelector({
+  roles,
+  onChange,
+}: {
+  roles: Role[];
+  onChange: (roles: Role[]) => void;
+}) {
+  return (
+    <fieldset>
+      <legend>角色权限</legend>
+
+      {(["judge", "admin"] as Role[]).map(
+        (role) => (
+          <label
+            className="check-row"
+            key={role}
+          >
+            <input
+              type="checkbox"
+              checked={roles.includes(role)}
+              onChange={(e) =>
+                onChange(
+                  e.target.checked
+                    ? [
+                        ...new Set([
+                          ...roles,
+                          role,
+                        ]),
+                      ]
+                    : roles.filter(
+                        (value) =>
+                          value !== role,
+                      ),
+                )
+              }
+            />
+
+            <span>
+              <strong>
+                {role === "judge"
+                  ? "评委"
+                  : "管理员"}
+              </strong>
+
+              <small>
+                {role === "judge"
+                  ? "参与评分并查看自己的评分记录"
+                  : "查看全部成绩、配置成员与赛事"}
+              </small>
+            </span>
+          </label>
+        ),
+      )}
+    </fieldset>
+  );
+}
+
+function FeishuPermissionForm({
+  person,
   onClose,
   onSaved,
 }: {
-  user: User | "new";
+  person: FeishuSearchUser;
   onClose: () => void;
   onSaved: () => Promise<void>;
 }) {
-  const existing = user === "new" ? null : user;
-  const [name, setName] = useState(existing?.name || ""),
-    [username, setUsername] = useState(existing?.username || ""),
-    [password, setPassword] = useState(""),
-    [roles, setRoles] = useState<Role[]>(existing?.roles || ["judge"]),
-    [active, setActive] = useState(existing?.active ?? true),
-    [error, setError] = useState(""),
-    [busy, setBusy] = useState(false);
-  async function submit(e: FormEvent) {
+  const [roles, setRoles] =
+    useState<Role[]>(
+      person.authorization?.roles ||
+        ["judge"],
+    );
+
+  const [error, setError] =
+    useState("");
+
+  const [busy, setBusy] =
+    useState(false);
+
+  async function submit(
+    e: FormEvent,
+  ) {
     e.preventDefault();
+
     setBusy(true);
     setError("");
+
     try {
-      if (existing)
-        await api(
-          `/admin/users/${existing.id}`,
-          { name, roles, active },
-          "PATCH",
-        );
-      else await api("/admin/users", { name, username, password, roles });
+      await api(
+        "/admin/feishu-users/authorize",
+        {
+          openId: person.openId,
+          roles,
+        },
+        "POST",
+      );
+
       await onSaved();
     } catch (e) {
-      setError(errorMessage(e));
+      setError(
+        errorMessage(e),
+      );
     } finally {
       setBusy(false);
     }
   }
+
   return (
     <Modal
-      title={existing ? "编辑成员权限" : "添加成员"}
+      title={`配置飞书权限 · ${person.name}`}
       onClose={() => {
-        if (!busy) onClose();
+        if (!busy)
+          onClose();
       }}
     >
-      <form className="stack-form" onSubmit={(e) => void submit(e)}>
-        {error && <Notice>{error}</Notice>}
-        <label>
-          显示姓名
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-            maxLength={60}
-          />
-        </label>
-        <label>
-          登录账号
-          <input
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            required
-            minLength={3}
-            maxLength={40}
-            pattern="[a-zA-Z0-9_.\-]+"
-            disabled={!!existing}
-            placeholder="英文、数字、下划线或短横线"
-          />
-        </label>
-        {!existing && (
-          <label>
-            初始密码
-            <input
-              type="password"
-              autoComplete="new-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={12}
-              maxLength={128}
-              placeholder="至少 12 位"
-            />
-          </label>
+      <form
+        className="stack-form"
+        onSubmit={(e) =>
+          void submit(e)
+        }
+      >
+        {error && (
+          <Notice>{error}</Notice>
         )}
-        <fieldset>
-          <legend>角色权限</legend>
-          {(["judge", "admin"] as Role[]).map((r) => (
-            <label className="check-row" key={r}>
-              <input
-                type="checkbox"
-                checked={roles.includes(r)}
-                onChange={(e) =>
-                  setRoles(
-                    e.target.checked
-                      ? [...roles, r]
-                      : roles.filter((v) => v !== r),
-                  )
-                }
-              />
-              <span>
-                <strong>{r === "judge" ? "评委" : "管理员"}</strong>
-                <small>
-                  {r === "judge"
-                    ? "评分、查看自己的记录"
-                    : "查看全部成绩、配置成员与赛事"}
-                </small>
-              </span>
-            </label>
-          ))}
-        </fieldset>
-        {existing && (
-          <label className="check-row">
-            <input
-              type="checkbox"
-              checked={active}
-              onChange={(e) => setActive(e.target.checked)}
-            />
-            账号启用
-          </label>
-        )}
+
+        <div>
+          <strong>
+            {person.name}
+          </strong>
+
+          <p className="muted">
+            {person.userId
+              ? `飞书工号：${person.userId}`
+              : "飞书通讯录成员"}
+          </p>
+        </div>
+
+        <RoleSelector
+          roles={roles}
+          onChange={setRoles}
+        />
+
         <div className="modal-actions">
           <button
             type="button"
@@ -721,59 +950,144 @@ function MemberForm({
           >
             取消
           </button>
-          <button className="primary" disabled={busy || !roles.length}>
-            {busy ? "正在保存…" : "保存成员"}
+
+          <button
+            className="primary"
+            disabled={
+              busy ||
+              !roles.length
+            }
+          >
+            {busy
+              ? "正在保存…"
+              : "保存权限"}
           </button>
         </div>
       </form>
     </Modal>
   );
 }
-function PasswordForm({ user, onClose }: { user: User; onClose: () => void }) {
-  const [password, setPassword] = useState(""),
-    [busy, setBusy] = useState(false),
-    [error, setError] = useState("");
-  async function submit(e: FormEvent) {
+
+function MemberPermissionForm({
+  user,
+  onClose,
+  onSaved,
+}: {
+  user: User;
+  onClose: () => void;
+  onSaved: () => Promise<void>;
+}) {
+  const [roles, setRoles] =
+    useState<Role[]>(
+      user.roles,
+    );
+
+  const [active, setActive] =
+    useState(user.active);
+
+  const [error, setError] =
+    useState("");
+
+  const [busy, setBusy] =
+    useState(false);
+
+  async function submit(
+    e: FormEvent,
+  ) {
     e.preventDefault();
+
     setBusy(true);
+    setError("");
+
     try {
-      await api(`/admin/users/${user.id}/password`, { password });
-      onClose();
+      await api(
+        `/admin/users/${user.id}`,
+        {
+          roles,
+          active,
+        },
+        "PATCH",
+      );
+
+      await onSaved();
     } catch (e) {
-      setError(errorMessage(e));
+      setError(
+        errorMessage(e),
+      );
     } finally {
       setBusy(false);
     }
   }
+
   return (
     <Modal
-      title={`重置密码 · ${user.name}`}
+      title={`编辑权限 · ${user.name}`}
       onClose={() => {
-        if (!busy) onClose();
+        if (!busy)
+          onClose();
       }}
     >
-      <form className="stack-form" onSubmit={(e) => void submit(e)}>
-        <p className="muted">重置后该成员需重新登录，已提交评分保留。</p>
-        {error && <Notice>{error}</Notice>}
-        <label>
-          新密码
+      <form
+        className="stack-form"
+        onSubmit={(e) =>
+          void submit(e)
+        }
+      >
+        {error && (
+          <Notice>{error}</Notice>
+        )}
+
+        <p className="muted">
+          姓名来自飞书通讯录，不在评分系统中手工填写或修改。
+        </p>
+
+        <RoleSelector
+          roles={roles}
+          onChange={setRoles}
+        />
+
+        <label className="check-row">
           <input
-            type="password"
-            autoComplete="new-password"
-            minLength={12}
-            maxLength={128}
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            type="checkbox"
+            checked={active}
+            onChange={(e) =>
+              setActive(
+                e.target.checked,
+              )
+            }
           />
+          成员启用
         </label>
-        <button className="primary" disabled={busy}>
-          确认重置
-        </button>
+
+        <div className="modal-actions">
+          <button
+            type="button"
+            className="outline"
+            disabled={busy}
+            onClick={onClose}
+          >
+            取消
+          </button>
+
+          <button
+            className="primary"
+            disabled={
+              busy ||
+              !roles.length
+            }
+          >
+            {busy
+              ? "正在保存…"
+              : "保存权限"}
+          </button>
+        </div>
       </form>
     </Modal>
   );
 }
+
+
+
 function Settings({
   data,
   refresh,

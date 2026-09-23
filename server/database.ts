@@ -36,6 +36,35 @@ export class Store {
       CREATE TABLE IF NOT EXISTS requests(user_id TEXT NOT NULL REFERENCES users(id), request_id TEXT NOT NULL, payload TEXT NOT NULL, response TEXT NOT NULL, PRIMARY KEY(user_id,request_id));
       CREATE TABLE IF NOT EXISTS audit(id INTEGER PRIMARY KEY AUTOINCREMENT, actor_id TEXT NOT NULL REFERENCES users(id), action TEXT NOT NULL, details TEXT NOT NULL, created_at TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS login_attempts(key TEXT PRIMARY KEY, count INTEGER NOT NULL, window_start INTEGER NOT NULL);
+      CREATE TABLE IF NOT EXISTS external_identities(
+        provider TEXT NOT NULL,
+        tenant_id TEXT NOT NULL,
+        subject_id TEXT NOT NULL,
+        user_id TEXT NOT NULL REFERENCES users(id),
+        created_at TEXT NOT NULL,
+        PRIMARY KEY(provider,tenant_id,subject_id),
+        UNIQUE(provider,user_id)
+      );
+      CREATE TABLE IF NOT EXISTS oauth_states(
+        state_hash TEXT PRIMARY KEY,
+        provider TEXT NOT NULL,
+        mode TEXT NOT NULL CHECK(mode IN ('login','bind')),
+        user_id TEXT REFERENCES users(id),
+        expires_at INTEGER NOT NULL,
+        created_at INTEGER NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS pending_external_identities(
+        provider TEXT NOT NULL,
+        tenant_id TEXT NOT NULL,
+        subject_id TEXT NOT NULL,
+        union_id TEXT,
+        external_user_id TEXT,
+        name TEXT NOT NULL,
+        email TEXT,
+        first_seen_at TEXT NOT NULL,
+        last_seen_at TEXT NOT NULL,
+        PRIMARY KEY(provider,tenant_id,subject_id)
+      );
     `);
     this.db.transaction(() => {
       this.db

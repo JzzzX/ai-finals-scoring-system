@@ -8,6 +8,7 @@ import {
   ExecutionContext,
   Get,
   HttpException,
+  NotFoundException,
   Inject,
   Injectable,
   Module,
@@ -31,6 +32,11 @@ import { resolve } from "node:path";
 import { Store } from "./database";
 import { FinalsService } from "./service";
 import type { SessionInfo } from "../shared/types";
+import {
+  feishuAuthorizeUrl,
+  feishuConfigured,
+  fetchFeishuIdentity,
+} from "./feishu";
 
 type AuthRequest = Request & { identity: SessionInfo };
 const cookieOptions = () => ({
@@ -39,12 +45,24 @@ const cookieOptions = () => ({
   secure: process.env.COOKIE_SECURE === "true",
   path: "/",
 });
+
+const oauthOnly = () =>
+  process.env.NODE_ENV === "production" &&
+  process.env.AUTH_MODE === "feishu";
 @Injectable()
 class SessionGuard implements CanActivate {
   constructor(@Inject(FinalsService) private service: FinalsService) {}
   canActivate(context: ExecutionContext) {
     const req = context.switchToHttp().getRequest<AuthRequest>();
-    if (["/api/login", "/api/health"].includes(req.path)) return true;
+    if (
+      [
+        "/api/login",
+        "/api/health",
+        "/api/auth/feishu/login",
+        "/api/auth/feishu/callback",
+      ].includes(req.path)
+    )
+      return true;
     req.identity = {
       ...this.service.session(req.cookies?.finals_session),
     };
@@ -81,11 +99,143 @@ class Api {
     this.service.store.db.prepare("SELECT 1").get();
     return { ok: true };
   }
+  @Get("auth/feishu/login")
+  feishuLogin(@Res() res: Response) {
+    if (!feishuConfigured())
+      throw new HttpException("飞书登录尚未完成服务器配置", 503);
+
+    const state = this.service.createOAuthState("login");
+
+    res.cookie("finals_feishu_state", state, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.COOKIE_SECURE === "true",
+      path: "/api/auth/feishu",
+      maxAge: 10 * 60 * 1000,
+    });
+
+    return res.redirect(302, feishuAuthorizeUrl(state));
+  }
+
+  @Get("auth/feishu/bind")
+  feishuBind(@Req() req: AuthRequest, @Res() res: Response) {
+    if (oauthOnly()) throw new NotFoundException();
+
+    if (!feishuConfigured())
+      throw new HttpException("飞书登录尚未完成服务器配置", 503);
+
+    const state = this.service.createOAuthState(
+      "bind",
+      req.identity.user.id,
+    );
+
+    res.cookie("finals_feishu_state", state, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.COOKIE_SECURE === "true",
+      path: "/api/auth/feishu",
+      maxAge: 10 * 60 * 1000,
+    });
+
+    return res.redirect(302, feishuAuthorizeUrl(state));
+  }
+
+  @Get("auth/feishu/callback")
+  async feishuCallback(
+    @Req() req: Request,
+    @Query("code") code: string | undefined,
+    @Query("state") state: string | undefined,
+    @Query("error") oauthError: string | undefined,
+    @Res() res: Response,
+  ) {
+    const clearOAuthCookie = () =>
+      res.clearCookie("finals_feishu_state", {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: process.env.COOKIE_SECURE === "true",
+        path: "/api/auth/feishu",
+      });
+
+    if (oauthError || !code || !state) {
+      clearOAuthCookie();
+      return res.redirect(302, "/?feishu=cancelled");
+    }
+
+    if (
+      !req.cookies?.finals_feishu_state ||
+      req.cookies.finals_feishu_state !== state
+    ) {
+      clearOAuthCookie();
+      return res.redirect(302, "/?feishu=state_error");
+    }
+
+    try {
+      const pending = this.service.consumeOAuthState(state);
+      const identity = await fetchFeishuIdentity(code);
+
+      let userId: string | null;
+
+      if (pending.mode === "bind") {
+        if (!pending.userId)
+          throw new Error("绑定状态缺少评分系统用户");
+
+        this.service.bindExternalIdentity(
+          pending.userId,
+          identity,
+        );
+
+        userId = pending.userId;
+      } else {
+        userId = this.service.externalUserId(
+          identity.provider,
+          identity.tenantId,
+          identity.subjectId,
+        );
+
+        if (!userId) {
+          this.service.recordPendingExternalIdentity(identity);
+          clearOAuthCookie();
+          return res.redirect(302, "/?feishu=unbound");
+        }
+      }
+
+      const session = this.service.issueSession(userId);
+
+      res.cookie("finals_session", session.token, {
+        ...cookieOptions(),
+        maxAge: 12 * 3600000,
+      });
+
+      clearOAuthCookie();
+
+      const target = session.user.roles.includes("judge")
+        ? "/score"
+        : "/admin/results";
+
+      return res.redirect(
+        302,
+        `${target}?feishu=${
+          pending.mode === "bind" ? "bound" : "success"
+        }`,
+      );
+    } catch (error) {
+      clearOAuthCookie();
+
+      console.error(
+        "Feishu OAuth callback failed:",
+        error instanceof Error ? error.message : "unknown",
+      );
+
+      return res.redirect(302, "/?feishu=error");
+    }
+  }
   @Post("login") async login(
     @Body() body: unknown,
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
+    if (oauthOnly()) throw new NotFoundException();
+
     const { token, ...session } = await this.service.login(
       body,
       req.ip || "local",
@@ -123,10 +273,40 @@ class Api {
   @Get("admin/users") users(@Req() req: AuthRequest) {
     return this.service.users(req.identity.user.id);
   }
+
+  @Get("admin/feishu-users/search")
+  async searchFeishuUsers(
+    @Req() req: AuthRequest,
+    @Query("q") query?: string,
+  ) {
+    return this.service.searchFeishuUsers(
+      req.identity.user.id,
+      query || "",
+    );
+  }
+
+  @Post("admin/feishu-users/authorize")
+  async authorizeFeishuUser(
+    @Req() req: AuthRequest,
+    @Body() body: unknown,
+  ) {
+    return this.service.authorizeFeishuUser(
+      req.identity.user.id,
+      body,
+    );
+  }
+  @Get("admin/feishu-pending") feishuPending(
+    @Req() req: AuthRequest,
+  ) {
+    return this.service.pendingExternalIdentities(
+      req.identity.user.id,
+    );
+  }
   @Post("admin/users") createUser(
     @Req() req: AuthRequest,
     @Body() body: unknown,
   ) {
+    if (oauthOnly()) throw new NotFoundException();
     return this.service.createUser(body, req.identity.user.id);
   }
   @Patch("admin/users/:id") updateUser(
@@ -141,6 +321,7 @@ class Api {
     @Param("id") id: string,
     @Body() body: unknown,
   ) {
+    if (oauthOnly()) throw new NotFoundException();
     return this.service.resetPassword(req.identity.user.id, id, body);
   }
   @Post("admin/status") status(@Req() req: AuthRequest, @Body() body: unknown) {

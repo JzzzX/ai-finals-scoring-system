@@ -10,6 +10,10 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { Store } from "./database";
 import { digest, hashPassword, randomToken } from "./security";
+import {
+  findFeishuDirectoryUser,
+  searchFeishuDirectoryUsers,
+} from "./feishu";
 import { LocalIdentityProvider, type IdentityProvider } from "./identity";
 import criteria from "../shared/criteria.json";
 import type {
@@ -169,7 +173,7 @@ export class FinalsService {
     const input = parse(
       z
         .object({
-          name: z.string().trim().min(1).max(60),
+          name: z.string().trim().min(1).max(60).optional(),
           roles: z
             .array(z.enum(["admin", "judge"]))
             .min(1)
@@ -196,8 +200,11 @@ export class FinalsService {
         this.db
           .prepare("UPDATE users SET name=?,roles=?,active=? WHERE id=?")
           .run(
-            input.name,
-            JSON.stringify([...new Set(input.roles)]),
+              process.env.NODE_ENV === "production" &&
+                process.env.AUTH_MODE === "feishu"
+                ? before.name
+                : input.name || before.name,
+              JSON.stringify([...new Set(input.roles)]),
             Number(input.active),
             id,
           );
@@ -240,6 +247,474 @@ export class FinalsService {
       .immediate();
     return { ok: true };
   }
+  async searchFeishuUsers(
+    actorId: string,
+    query: string,
+  ) {
+    this.require(actorId, "admin");
+
+    const people =
+      await searchFeishuDirectoryUsers(query);
+
+    return people.map((person) => {
+      const mappedId = this.externalUserId(
+        "feishu",
+        person.tenantId,
+        person.openId,
+      );
+
+      if (!mappedId) {
+        return {
+          ...person,
+          authorization: null,
+        };
+      }
+
+      const user = this.user(mappedId);
+
+      return {
+        ...person,
+        authorization: {
+          userId: user.id,
+          roles: user.roles,
+          active: user.active,
+        },
+      };
+    });
+  }
+
+  async authorizeFeishuUser(
+    actorId: string,
+    body: unknown,
+  ) {
+    this.require(actorId, "admin");
+
+    const input = parse(
+      z.object({
+        openId: z.string().trim().min(3).max(128),
+        roles: z
+          .array(z.enum(["admin", "judge"]))
+          .min(1)
+          .max(2),
+      }).strict(),
+      body,
+    );
+
+    const person =
+      await findFeishuDirectoryUser(input.openId);
+
+    if (!person)
+      throw new BadRequestException(
+        "飞书通讯录中未找到该人员，请重新搜索后再配置",
+      );
+
+    const roles = [...new Set(input.roles)];
+    const name = person.name.trim().slice(0, 60);
+
+    const passwordHash = await hashPassword(
+      `${randomToken()}${randomToken()}`,
+    );
+
+    return this.db
+      .transaction(() => {
+        this.require(actorId, "admin");
+
+        const mappedId = this.externalUserId(
+          "feishu",
+          person.tenantId,
+          person.openId,
+        );
+
+        if (mappedId) {
+          const before = this.user(mappedId);
+
+          if (
+            before.active &&
+            before.roles.includes("admin") &&
+            !roles.includes("admin")
+          ) {
+            const admins = this.users(actorId).filter(
+              (u) =>
+                u.active &&
+                u.roles.includes("admin"),
+            );
+
+            if (admins.length <= 1)
+              throw new ConflictException(
+                "至少保留一个可用管理员",
+              );
+          }
+
+          this.db.prepare(
+            "UPDATE users SET name=?,roles=?,active=1 WHERE id=?",
+          ).run(
+            name,
+            JSON.stringify(roles),
+            mappedId,
+          );
+
+          this.db.prepare(
+            `DELETE FROM pending_external_identities
+             WHERE provider='feishu'
+               AND tenant_id=?
+               AND subject_id=?`,
+          ).run(
+            person.tenantId,
+            person.openId,
+          );
+
+          this.audit(
+            actorId,
+            "user.feishu_authorized",
+            {
+              userId: mappedId,
+              openId: person.openId,
+              name,
+              before: {
+                roles: before.roles,
+                active: before.active,
+              },
+              after: {
+                roles,
+                active: true,
+              },
+            },
+          );
+
+          return this.user(mappedId);
+        }
+
+        const id = randomUUID();
+
+        const suffix = (
+          person.userId ||
+          person.openId.slice(-18)
+        ).replace(
+          /[^a-zA-Z0-9_.-]/g,
+          "_",
+        );
+
+        const base =
+          `feishu_${suffix}`.slice(0, 40);
+
+        let username = base;
+        let sequence = 1;
+
+        while (
+          this.db.prepare(
+            "SELECT id FROM users WHERE username=?",
+          ).get(username)
+        ) {
+          username =
+            `${base.slice(0, 34)}_${sequence++}`;
+        }
+
+        const now = new Date().toISOString();
+
+        this.db.prepare(
+          `INSERT INTO users(
+             id,
+             username,
+             name,
+             password_hash,
+             roles,
+             active,
+             created_at
+           )
+           VALUES(?,?,?,?,?,?,?)`,
+        ).run(
+          id,
+          username,
+          name,
+          passwordHash,
+          JSON.stringify(roles),
+          1,
+          now,
+        );
+
+        this.db.prepare(
+          `INSERT INTO external_identities(
+             provider,
+             tenant_id,
+             subject_id,
+             user_id,
+             created_at
+           )
+           VALUES('feishu',?,?,?,?)`,
+        ).run(
+          person.tenantId,
+          person.openId,
+          id,
+          now,
+        );
+
+        this.db.prepare(
+          `DELETE FROM pending_external_identities
+           WHERE provider='feishu'
+             AND tenant_id=?
+             AND subject_id=?`,
+        ).run(
+          person.tenantId,
+          person.openId,
+        );
+
+        this.audit(
+          actorId,
+          "user.feishu_authorized",
+          {
+            userId: id,
+            openId: person.openId,
+            name,
+            roles,
+          },
+        );
+
+        return this.user(id);
+      })
+      .immediate();
+  }
+
+  createOAuthState(mode: "login" | "bind", userId?: string) {
+    if (mode === "bind") {
+      if (!userId) throw new BadRequestException("绑定操作缺少当前用户");
+      this.require(userId);
+    }
+
+    const now = Date.now(),
+      state = randomToken();
+
+    this.db
+      .transaction(() => {
+        this.db.prepare("DELETE FROM oauth_states WHERE expires_at<?").run(now);
+        this.db
+          .prepare(
+            "INSERT INTO oauth_states(state_hash,provider,mode,user_id,expires_at,created_at) VALUES(?,?,?,?,?,?)",
+          )
+          .run(
+            digest(state),
+            "feishu",
+            mode,
+            userId || null,
+            now + 10 * 60 * 1000,
+            now,
+          );
+      })
+      .immediate();
+
+    return state;
+  }
+
+  consumeOAuthState(state: string) {
+    if (!state) throw new BadRequestException("飞书登录状态缺失");
+
+    const stateHash = digest(state),
+      now = Date.now();
+
+    return this.db
+      .transaction(() => {
+        const row = this.db
+          .prepare(
+            "SELECT provider,mode,user_id,expires_at FROM oauth_states WHERE state_hash=?",
+          )
+          .get(stateHash) as
+          | {
+              provider: string;
+              mode: "login" | "bind";
+              user_id: string | null;
+              expires_at: number;
+            }
+          | undefined;
+
+        if (!row || row.provider !== "feishu" || row.expires_at < now) {
+          if (row)
+            this.db
+              .prepare("DELETE FROM oauth_states WHERE state_hash=?")
+              .run(stateHash);
+
+          throw new BadRequestException(
+            "飞书登录状态已失效，请重新发起登录",
+          );
+        }
+
+        this.db
+          .prepare("DELETE FROM oauth_states WHERE state_hash=?")
+          .run(stateHash);
+
+        return {
+          mode: row.mode,
+          userId: row.user_id || undefined,
+        };
+      })
+      .immediate();
+  }
+
+  recordPendingExternalIdentity(identity: {
+    provider: string;
+    tenantId: string;
+    subjectId: string;
+    unionId?: string;
+    userId?: string;
+    name: string;
+    email?: string;
+  }) {
+    const now = new Date().toISOString();
+
+    this.db
+      .prepare(
+        `INSERT INTO pending_external_identities(
+          provider,
+          tenant_id,
+          subject_id,
+          union_id,
+          external_user_id,
+          name,
+          email,
+          first_seen_at,
+          last_seen_at
+        )
+        VALUES(?,?,?,?,?,?,?,?,?)
+        ON CONFLICT(provider,tenant_id,subject_id)
+        DO UPDATE SET
+          union_id=excluded.union_id,
+          external_user_id=excluded.external_user_id,
+          name=excluded.name,
+          email=excluded.email,
+          last_seen_at=excluded.last_seen_at`,
+      )
+      .run(
+        identity.provider,
+        identity.tenantId,
+        identity.subjectId,
+        identity.unionId || null,
+        identity.userId || null,
+        identity.name,
+        identity.email || null,
+        now,
+        now,
+      );
+
+    return { ok: true };
+  }
+
+  pendingExternalIdentities(actorId: string) {
+    this.require(actorId, "admin");
+
+    return this.db
+      .prepare(
+        `SELECT
+          provider,
+          tenant_id AS tenantId,
+          subject_id AS subjectId,
+          union_id AS unionId,
+          external_user_id AS externalUserId,
+          name,
+          email,
+          first_seen_at AS firstSeenAt,
+          last_seen_at AS lastSeenAt
+        FROM pending_external_identities
+        ORDER BY last_seen_at DESC`,
+      )
+      .all();
+  }
+
+  externalUserId(
+    provider: string,
+    tenantId: string,
+    subjectId: string,
+  ): string | null {
+    const row = this.db
+      .prepare(
+        "SELECT user_id FROM external_identities WHERE provider=? AND tenant_id=? AND subject_id=?",
+      )
+      .get(provider, tenantId, subjectId) as
+      | { user_id: string }
+      | undefined;
+
+    return row?.user_id || null;
+  }
+
+  bindExternalIdentity(
+    actorId: string,
+    identity: {
+      provider: string;
+      tenantId: string;
+      subjectId: string;
+    },
+  ) {
+    return this.db
+      .transaction(() => {
+        const user = this.require(actorId);
+
+        const identityOwner = this.db
+          .prepare(
+            "SELECT user_id FROM external_identities WHERE provider=? AND tenant_id=? AND subject_id=?",
+          )
+          .get(
+            identity.provider,
+            identity.tenantId,
+            identity.subjectId,
+          ) as { user_id: string } | undefined;
+
+        if (identityOwner && identityOwner.user_id !== actorId)
+          throw new ConflictException(
+            "该飞书账号已经绑定其他评分系统账号",
+          );
+
+        const existing = this.db
+          .prepare(
+            "SELECT tenant_id,subject_id FROM external_identities WHERE provider=? AND user_id=?",
+          )
+          .get(identity.provider, actorId) as
+          | { tenant_id: string; subject_id: string }
+          | undefined;
+
+        if (
+          existing &&
+          (existing.tenant_id !== identity.tenantId ||
+            existing.subject_id !== identity.subjectId)
+        )
+          throw new ConflictException(
+            "当前评分系统账号已经绑定其他飞书账号",
+          );
+
+        if (!existing) {
+          this.db
+            .prepare(
+              "INSERT INTO external_identities(provider,tenant_id,subject_id,user_id,created_at) VALUES(?,?,?,?,?)",
+            )
+            .run(
+              identity.provider,
+              identity.tenantId,
+              identity.subjectId,
+              actorId,
+              new Date().toISOString(),
+            );
+
+          this.audit(actorId, "identity.bound", {
+            provider: identity.provider,
+            tenantId: identity.tenantId,
+          });
+        }
+
+        return user;
+      })
+      .immediate();
+  }
+
+  issueSession(userId: string) {
+    const user = this.require(userId),
+      now = Date.now(),
+      token = randomToken(),
+      csrf = randomToken();
+
+    this.db.prepare("DELETE FROM sessions WHERE expires_at<?").run(now);
+    this.db
+      .prepare("INSERT INTO sessions VALUES(?,?,?,?)")
+      .run(digest(token), user.id, csrf, now + 12 * 3600000);
+
+    return { user, token, csrfToken: csrf };
+  }
+
   async login(body: unknown, ip: string) {
     const input = parse(
       z
@@ -275,15 +750,8 @@ export class FinalsService {
     const identity = await this.identity.authenticate(input);
     if (!identity)
       throw new UnauthorizedException("账号或密码不正确，或账号已停用");
-    const user = this.require(identity.userId);
-    const token = randomToken(),
-      csrf = randomToken();
     this.db.prepare("DELETE FROM login_attempts WHERE key=?").run(keys[1]);
-    this.db.prepare("DELETE FROM sessions WHERE expires_at<?").run(now);
-    this.db
-      .prepare("INSERT INTO sessions VALUES(?,?,?,?)")
-      .run(digest(token), user.id, csrf, now + 12 * 3600000);
-    return { user, token, csrfToken: csrf };
+    return this.issueSession(identity.userId);
   }
   session(token?: string) {
     if (!token) throw new UnauthorizedException("请先登录");
