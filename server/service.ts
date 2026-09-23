@@ -701,18 +701,39 @@ export class FinalsService {
       .immediate();
   }
 
-  issueSession(userId: string) {
-    const user = this.require(userId),
+  publicJudges() {
+    const contest = this.contest();
+    return (this.db.prepare("SELECT * FROM users WHERE active=1 ORDER BY created_at,id").all() as UserRow[])
+      .map(toUser).filter(u => u.roles.includes("judge") &&
+        (contest.status === "draft" || contest.roster.includes(u.id)))
+      .map(({id, name}) => ({id, name}));
+  }
+  judgeLogin(body: unknown) {
+    const {id} = parse(z.object({id: z.string().uuid()}).strict(), body);
+    if (!this.publicJudges().some(u => u.id === id))
+      throw new ForbiddenException("该评委身份当前不可用，请刷新名单或联系工作人员");
+    const session = this.issueSession(id, "judge");
+    this.audit(id, "judge.identity_selected", {});
+    return session;
+  }
+  async createJudge(body: unknown, actorId: string) {
+    this.require(actorId, "admin");
+    const {name} = parse(z.object({name: z.string().trim().min(1).max(60)}).strict(), body);
+    return this.createUser({name, username: `judge-${randomUUID().slice(0, 24)}`,
+      password: randomToken(), roles: ["judge"]}, actorId);
+  }
+  issueSession(userId: string, scope: "account" | "judge" = "account") {
+    const user = this.require(userId, scope === "judge" ? "judge" : undefined),
       now = Date.now(),
       token = randomToken(),
       csrf = randomToken();
 
     this.db.prepare("DELETE FROM sessions WHERE expires_at<?").run(now);
     this.db
-      .prepare("INSERT INTO sessions VALUES(?,?,?,?)")
-      .run(digest(token), user.id, csrf, now + 12 * 3600000);
+      .prepare("INSERT INTO sessions(token_hash,user_id,csrf,expires_at,auth_scope) VALUES(?,?,?,?,?)")
+      .run(digest(token), user.id, csrf, now + 12 * 3600000, scope);
 
-    return { user, token, csrfToken: csrf };
+    return { user: scope === "judge" ? {...user, roles: ["judge"] as Role[]} : user, token, csrfToken: csrf };
   }
 
   async login(body: unknown, ip: string) {
@@ -757,13 +778,14 @@ export class FinalsService {
     if (!token) throw new UnauthorizedException("请先登录");
     const row = this.db
       .prepare(
-        "SELECT user_id,csrf,expires_at FROM sessions WHERE token_hash=?",
+        "SELECT user_id,csrf,expires_at,auth_scope FROM sessions WHERE token_hash=?",
       )
       .get(digest(token)) as
-      { user_id: string; csrf: string; expires_at: number } | undefined;
+      { user_id: string; csrf: string; expires_at: number; auth_scope: string } | undefined;
     if (!row || row.expires_at < Date.now())
       throw new UnauthorizedException("登录已过期，请重新登录");
-    return { user: this.require(row.user_id), csrfToken: row.csrf };
+    const user = this.require(row.user_id, row.auth_scope === "judge" ? "judge" : undefined);
+    return { user: row.auth_scope === "judge" ? {...user, roles: ["judge"] as Role[]} : user, csrfToken: row.csrf };
   }
   logout(token: string) {
     this.db

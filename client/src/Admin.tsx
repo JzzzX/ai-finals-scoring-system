@@ -622,6 +622,7 @@ function MemberForm({
           { name, roles, active },
           "PATCH",
         );
+      else if (roles.length === 1 && roles[0] === "judge") await api("/admin/judges", {name});
       else await api("/admin/users", { name, username, password, roles });
       await onSaved();
     } catch (e) {
@@ -648,7 +649,7 @@ function MemberForm({
             maxLength={60}
           />
         </label>
-        <label>
+        {(!!existing || roles.includes("admin")) && <label>
           登录账号
           <input
             value={username}
@@ -660,8 +661,8 @@ function MemberForm({
             disabled={!!existing}
             placeholder="英文、数字、下划线或短横线"
           />
-        </label>
-        {!existing && (
+        </label>}
+        {!existing && roles.includes("admin") && (
           <label>
             初始密码
             <input

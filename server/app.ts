@@ -59,9 +59,13 @@ class SessionGuard implements CanActivate {
         req.path.startsWith("/api/admin/feishu-"))
     )
       throw new NotFoundException();
+    if (process.env.AUTH_MODE === "feishu" && req.path.startsWith("/api/judges"))
+      throw new NotFoundException();
     if (
       [
         "/api/login",
+        "/api/judges",
+        "/api/judges/login",
         "/api/health",
         "/api/auth/feishu/login",
         "/api/auth/feishu/callback",
@@ -71,6 +75,8 @@ class SessionGuard implements CanActivate {
     req.identity = {
       ...this.service.session(req.cookies?.finals_session),
     };
+    if (req.path.startsWith("/api/admin/") && !req.identity.user.roles.includes("admin"))
+      throw new ForbiddenException("没有管理员权限");
     if (
       !["GET", "HEAD", "OPTIONS"].includes(req.method) &&
       req.headers["x-csrf-token"] !== req.identity.csrfToken
@@ -224,6 +230,16 @@ class Api {
 
       return res.redirect(302, "/?feishu=error");
     }
+  }
+  @Get("judges") judges() { return this.service.publicJudges(); }
+  @Post("judges/login") judgeLogin(@Body() body: unknown, @Req() req: Request, @Res({passthrough: true}) res: Response) {
+    const {user, token, csrfToken} = this.service.judgeLogin(body);
+    if (req.cookies?.finals_session) this.service.logout(req.cookies.finals_session);
+    res.cookie("finals_session", token, {...cookieOptions(), maxAge: 12 * 3600000});
+    return {user, csrfToken};
+  }
+  @Post("admin/judges") createJudge(@Body() body: unknown, @Req() req: AuthRequest) {
+    return this.service.createJudge(body, req.identity.user.id);
   }
   @Post("login") async login(
     @Body() body: unknown,
