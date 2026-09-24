@@ -9,9 +9,40 @@ export async function exportLeaderboardPng(
   const snapshot: Results = structuredClone(data);
   const model = leaderboardModel(snapshot);
   await document.fonts.ready;
+  const sections = [
+    ...model.groups.map((g) => ({
+      label: `${g.label} · ${g.quota} 席 · ${g.range}`,
+      color: g.color as string,
+      rows: g.rows,
+    })),
+    ...(model.pending.length
+      ? [
+          {
+            label: "奖项待确认 · 同分跨界或超出名额，不自动拆分",
+            color: "#f1e5d0",
+            rows: model.pending,
+          },
+        ]
+      : []),
+    ...(model.unranked.length
+      ? [
+          {
+            label: "等待评分 · 不预分配奖项",
+            color: "#ffffff",
+            rows: model.unranked,
+          },
+        ]
+      : []),
+  ];
   const canvas = document.createElement("canvas");
   canvas.width = 1600;
-  canvas.height = 490 + model.rows.length * 112 + 180;
+  canvas.height =
+    510 +
+    sections.reduce(
+      (n, section) => n + 70 + Math.max(1, section.rows.length) * 112,
+      0,
+    ) +
+    180;
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("当前浏览器无法生成图片，请使用 CSV 导出。");
   const family = getComputedStyle(document.documentElement)
@@ -44,7 +75,7 @@ export async function exportLeaderboardPng(
   }
   text("2026 乖宝 AI 先锋赛", 1520, 92, 26, "#64715f", "right");
   text(model.final ? "决赛最终成绩" : "决赛实时榜单", 80, 215, 66);
-  text(model.status, 1520, 212, 36, "#8b6933", "right");
+  text(model.awardStatus, 1520, 212, 36, "#8b6933", "right");
   text(
     `${snapshot.total} / ${snapshot.expected} 份评分已提交   ·   ${model.received} / ${model.rows.length} 队评分已收齐`,
     80,
@@ -69,57 +100,75 @@ export async function exportLeaderboardPng(
     25,
     disconnected ? "#a24f30" : "#78664a",
   );
-  text("名次", 115, 454, 23, "#64715f");
-  text("参赛队伍", 250, 454, 23, "#64715f");
-  text("已评 / 评委", 1200, 454, 23, "#64715f", "center");
-  text("平均分", 1490, 454, 23, "#64715f", "right");
-  model.rows.forEach((row, index) => {
-    const y = 482 + index * 112;
-    const top = row.rank !== null && row.rank <= 3;
-    ctx.fillStyle = top
-      ? ["#ede0bc", "#e6e9e3", "#ede0d4"][row.rank! - 1]
-      : "#ffffff";
-    ctx.beginPath();
-    ctx.roundRect(80, y, 1440, 100, 12);
-    ctx.fill();
-    text(
-      row.rank === null ? "—" : String(row.rank).padStart(2, "0"),
-      142,
-      y + 58,
-      42,
-      top ? "#7a5a29" : "#64715f",
-      "center",
-    );
-    if (model.tied(row.rank))
-      text("并列", 142, y + 84, 18, "#78664a", "center");
-    const prefix = `第 ${String(row.team.order).padStart(2, "0")} 组`;
-    text(prefix, 250, y + 28, 20, "#64715f");
-    // Scale unusually long team names to fit instead of clipping the exported result.
-    let size = 30;
-    ctx.font = `400 ${size}px ${family}`;
-    while (ctx.measureText(row.team.name).width > 820 && size > 18) {
-      size--;
-      ctx.font = `400 ${size}px ${family}`;
+  text(
+    "奖项设置：一等奖 1 席 · 二等奖 3 席 · 三等奖 8 席",
+    80,
+    444,
+    28,
+    "#78664a",
+  );
+  let cursor = 500;
+  sections.forEach((section) => {
+    text(section.label, 80, cursor + 34, 30);
+    cursor += 70;
+    if (!section.rows.length) {
+      text(
+        model.pending.length
+          ? "暂无明确归属，请核对待确认队伍。"
+          : "等待评分产生候选队伍",
+        100,
+        cursor + 58,
+        26,
+        "#64715f",
+      );
+      cursor += 112;
     }
-    text(row.team.name, 250, y + 69, size);
-    text(
-      `${row.count} / ${snapshot.judges.length}`,
-      1200,
-      y + 59,
-      28,
-      "#64715f",
-      "center",
-    );
-    text(
-      row.average === null ? "—" : row.average.toFixed(2),
-      1490,
-      y + 62,
-      44,
-      "#304c43",
-      "right",
-    );
+    section.rows.forEach((row) => {
+      const y = cursor;
+      ctx.fillStyle = section.color;
+      ctx.beginPath();
+      ctx.roundRect(80, y, 1440, 100, 12);
+      ctx.fill();
+      text(
+        row.rank === null ? "—" : String(row.rank).padStart(2, "0"),
+        142,
+        y + 58,
+        42,
+        "#7a5a29",
+        "center",
+      );
+      if (model.tied(row.rank))
+        text("并列", 142, y + 84, 18, "#78664a", "center");
+      const prefix = `第 ${String(row.team.order).padStart(2, "0")} 组 · ${model.tied(row.rank) ? "并列" : ""}${row.rank === null ? "未排名" : `第 ${row.rank} 名`}`;
+      text(prefix, 250, y + 28, 20, "#64715f");
+      // Scale unusually long team names to fit instead of clipping the exported result.
+      let size = 30;
+      ctx.font = `400 ${size}px ${family}`;
+      while (ctx.measureText(row.team.name).width > 820 && size > 18) {
+        size--;
+        ctx.font = `400 ${size}px ${family}`;
+      }
+      text(row.team.name, 250, y + 69, size);
+      text(
+        `${row.count} / ${snapshot.judges.length} 位已评`,
+        1200,
+        y + 59,
+        23,
+        "#64715f",
+        "center",
+      );
+      text(
+        row.average === null ? "—" : row.average.toFixed(2),
+        1490,
+        y + 62,
+        44,
+        "#304c43",
+        "right",
+      );
+      cursor += 112;
+    });
   });
-  const bottom = 510 + model.rows.length * 112;
+  const bottom = cursor;
   text(
     "所有评委等权 · 不去最高最低分 · 0 分计入 · 未评分不计入",
     80,
@@ -128,7 +177,9 @@ export async function exportLeaderboardPng(
     "#64715f",
   );
   text(
-    "按未舍入均分排名 · 完全同分并列 · 未评分队伍不排名",
+    model.pending.length
+      ? "同分跨奖项边界或超出名额的队伍，奖项待确认。"
+      : "按未舍入均分排名 · 完全同分并列 · 未评分队伍不排名",
     80,
     bottom + 82,
     24,
@@ -144,7 +195,7 @@ export async function exportLeaderboardPng(
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `乖宝AI先锋赛-${model.status}-${snapshot.updatedAt.replace(/[:.]/g, "-")}.png`;
+  a.download = `乖宝AI先锋赛-${model.awardStatus}-${snapshot.updatedAt.replace(/[:.]/g, "-")}.png`;
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 60000);
 }

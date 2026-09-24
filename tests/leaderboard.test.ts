@@ -75,3 +75,62 @@ test("只有收齐且结束评分才标最终成绩，空赛事不能标最终",
   );
   assert.equal(leaderboardModel(result([], "closed")).final, false);
 });
+
+test("12 支队伍按 1+3+8 分组，页面与导出共享规则", () => {
+  const model = leaderboardModel(
+    result(
+      Array.from({ length: 12 }, (_, i) => row(i + 1, i + 1, 10 - i / 2)),
+      "closed",
+    ),
+  );
+  assert.deepEqual(
+    model.groups.map((g) => g.rows.length),
+    [1, 3, 8],
+  );
+  assert.deepEqual(
+    model.groups[1].rows.map((r) => r.rank),
+    [2, 3, 4],
+  );
+  assert.equal(model.pending.length, 0);
+  assert.equal(model.awardStatus, "获奖结果");
+});
+test("同分跨一二等奖或二三等奖边界时整组待确认，不按队伍序号拆分", () => {
+  for (const ranks of [
+    [1, 1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+    [1, 2, 3, 4, 4, 6, 7, 8, 9, 10, 11, 12],
+  ]) {
+    const model = leaderboardModel(
+      result(
+        ranks.map((rank, i) => row(i + 1, rank, 10 - rank / 2)),
+        "closed",
+      ),
+    );
+    assert.equal(model.pending.length, 2);
+    assert.equal(model.awardStatus, "奖项待确认");
+    assert.equal(model.groups.flatMap((g) => g.rows).length, 10);
+    assert.equal(new Set(model.pending.map((r) => r.rank)).size, 1);
+  }
+});
+test("同奖项内并列仍留在同奖项，空榜与未收齐不确认获奖", () => {
+  const model = leaderboardModel(
+    result([
+      row(1, 1, 10),
+      row(2, 2, 9),
+      row(3, 2, 9),
+      row(4, 4, 8),
+      row(5, null, null),
+    ]),
+  );
+  assert.deepEqual(
+    model.groups.map((g) => g.rows.length),
+    [1, 3, 0],
+  );
+  assert.equal(model.pending.length, 0);
+  assert.equal(model.unranked.length, 1);
+  assert.equal(model.awardStatus, "暂定奖项");
+  const empty = leaderboardModel(result([row(1, null, null)]));
+  assert.deepEqual(
+    empty.groups.map((g) => g.rows.length),
+    [0, 0, 0],
+  );
+});

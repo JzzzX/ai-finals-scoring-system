@@ -7,7 +7,7 @@ import {
   Trophy,
   ImageDown,
 } from "lucide-react";
-import type { Results } from "../../shared/types";
+import type { Results, ResultRow } from "../../shared/types";
 import { leaderboardModel } from "./leaderboard-model";
 import { exportLeaderboardPng } from "./leaderboard-export";
 
@@ -30,8 +30,42 @@ export function Leaderboard({
     document.addEventListener("fullscreenchange", sync);
     return () => document.removeEventListener("fullscreenchange", sync);
   }, []);
-  const { rows, podium, complete, final, received, tied } =
-    leaderboardModel(data);
+  const {
+    rows,
+    groups,
+    pending,
+    unranked,
+    awardStatus,
+    complete,
+    final,
+    received,
+    tied,
+  } = leaderboardModel(data);
+  function teamCard(r: ResultRow) {
+    return (
+      <article className="award-team" key={r.team.id}>
+        <div className="award-team-meta">
+          <span>
+            {r.rank === null
+              ? "未排名"
+              : `${tied(r.rank) ? "并列 " : ""}第 ${r.rank} 名`}
+          </span>
+          <span>第 {String(r.team.order).padStart(2, "0")} 组</span>
+        </div>
+        <h3 className="team-name">{r.team.name}</h3>
+        <div className="award-team-bottom">
+          <span>
+            {r.count}/{data.judges.length} 位已评 ·{" "}
+            {r.count > 0 && !r.missing.length ? "已收齐" : "待收齐"}
+          </span>
+          <strong>
+            {r.average?.toFixed(2) ?? "—"}
+            <small> / 10</small>
+          </strong>
+        </div>
+      </article>
+    );
+  }
   async function exportImage() {
     setExporting(true);
     setExportMessage("");
@@ -151,93 +185,75 @@ export function Leaderboard({
                 : "评分进行中，按已提交分数计算平均分；收齐前排名可能变化。"}
         </p>
       )}
-      {podium.length > 0 ? (
-        <section className="podium-section" aria-label="当前前三名">
-          <div className="ranking-section-title">
-            <h2>{final ? "荣誉榜" : "当前领先"}</h2>
-            <span>{final ? "决赛成绩" : "暂定名次 · 以最终结果为准"}</span>
-          </div>
-          <div className="podium-grid">
-            {podium.map((r) => (
-              <article
-                key={r.team.id}
-                className={`podium-card place-${r.rank}`}
-              >
-                <div className="podium-rank">
-                  <Trophy size={22} />
-                  <span>
-                    第 {r.rank} 名{tied(r.rank) ? " · 并列" : ""}
-                  </span>
-                </div>
-                <h2 className="team-name">{r.team.name}</h2>
-                <p>
-                  第 {String(r.team.order).padStart(2, "0")} 组 · {r.count}/
-                  {data.judges.length} 位已评
-                </p>
-                <strong className="podium-score">
-                  {r.average?.toFixed(2)}
-                  <small> / 10</small>
-                </strong>
-              </article>
-            ))}
-          </div>
-        </section>
-      ) : (
-        <div className="ranking-empty">
-          <Trophy size={26} />
-          <div>
-            <h2>等待首份评分</h2>
-            <p>评分提交后，名次与领先队伍将在这里自动更新。</p>
-          </div>
+      <div className="award-summary" aria-label="奖项设置">
+        <div>
+          <span>决赛奖项</span>
+          <strong>1 + 3 + 8</strong>
         </div>
-      )}
-      <div className="ranking-section-title">
-        <h2>完整排名</h2>
-        <span>
-          {rows.length} 支队伍 · {final ? "最终成绩" : "实时更新"}
-        </span>
+        <p>一等奖 1 席 · 二等奖 3 席 · 三等奖 8 席</p>
+        <span className="award-status">{awardStatus}</span>
       </div>
-      <div className="leader-grid">
-        {rows.map((r) => (
-          <article
-            key={r.team.id}
-            className={`leader-card ${r.rank && r.rank <= 3 ? `leading place-${r.rank}` : ""}`}
+      {pending.length > 0 && (
+        <p className="board-warning" role="status">
+          有队伍同分跨越奖项边界或超出奖项名额，已单列为“奖项待确认”。同分不按出场顺序拆分。
+        </p>
+      )}
+      <div className="award-sections">
+        {groups.map((group) => (
+          <section
+            className={`award-section award-${group.key}`}
+            key={group.key}
+            aria-label={group.label}
           >
-            <div
-              className="leader-rank"
-              aria-label={r.rank ? `第 ${r.rank} 名` : "未排名"}
-            >
-              <strong>
-                {r.rank === null ? "—" : String(r.rank).padStart(2, "0")}
-              </strong>
-              <small>
-                {r.rank === null ? "未排名" : tied(r.rank) ? "并列" : "名次"}
-              </small>
-            </div>
-            <div className="leader-info">
-              <span>
-                第 {String(r.team.order).padStart(2, "0")} 组
-                {r.rank &&
-                rows.filter((other) => other.rank === r.rank).length > 1
-                  ? " · 并列"
-                  : ""}
-              </span>
-              <h2 className="team-name">{r.team.name}</h2>
-              <div className="leader-meter" aria-hidden="true">
-                <i style={{ width: `${(r.average ?? 0) * 10}%` }} />
+            <header className="award-heading">
+              <div className="award-heading-name">
+                <Trophy size={24} />
+                <h2>{group.label}</h2>
+                <span>{group.quota} 席</span>
               </div>
-              <small>
-                {r.count} / {data.judges.length} 位已评 ·{" "}
-                {r.count > 0 && !r.missing.length ? "已收齐" : "待收齐"}
-              </small>
-            </div>
-            <div className="leader-score">
-              <strong key={r.average}>{r.average?.toFixed(2) ?? "—"}</strong>
-              <span>平均分 / 10</span>
-            </div>
-          </article>
+              <span>
+                {group.range} · {final ? "最终成绩分组" : "暂定候选"}
+              </span>
+            </header>
+            {group.rows.length ? (
+              <div className="award-team-grid">{group.rows.map(teamCard)}</div>
+            ) : (
+              <p className="award-vacant">
+                {pending.length
+                  ? "该奖项暂无明确归属，请核对待确认队伍。"
+                  : "等待评分产生候选队伍"}
+              </p>
+            )}
+          </section>
         ))}
       </div>
+      {pending.length > 0 && (
+        <section
+          className="award-section award-pending"
+          aria-label="奖项待确认"
+        >
+          <header className="award-heading">
+            <div className="award-heading-name">
+              <h2>奖项待确认</h2>
+              <span>{pending.length} 队</span>
+            </div>
+            <span>保留并列名次，待确定评奖处理方式</span>
+          </header>
+          <div className="award-team-grid">{pending.map(teamCard)}</div>
+        </section>
+      )}
+      {unranked.length > 0 && (
+        <section className="award-section award-unranked" aria-label="等待评分">
+          <header className="award-heading">
+            <div className="award-heading-name">
+              <h2>等待评分</h2>
+              <span>{unranked.length} 队</span>
+            </div>
+            <span>尚无成绩，不预分配奖项</span>
+          </header>
+          <div className="award-team-grid">{unranked.map(teamCard)}</div>
+        </section>
+      )}
       <footer className="board-footer">
         <span>所有评委等权 · 不去最高最低分 · 0 分有效</span>
         <span>按未舍入均分排名 · 完全同分并列</span>
